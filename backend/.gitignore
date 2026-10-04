@@ -1,3 +1,6 @@
 node_modules/
 .env
 ashani.db
+.ashani_backend.pid
+Ashani_Start.bat
+Ashani_Stop.bat
