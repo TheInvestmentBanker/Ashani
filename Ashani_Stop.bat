@@ -14,8 +14,8 @@ REM  it is installed as a Windows service and is lightweight when
 REM  the local origin is offline.
 REM ============================================================
 
-set "PROJECT_ROOT=C:\Users\RG\Aritraa"
-set "BACKEND_DIR=%PROJECT_ROOT%\backend"
+set "PROJECT_ROOT=%~dp0"
+set "BACKEND_DIR=%PROJECT_ROOT%backend"
 set "PID_FILE=%BACKEND_DIR%\.ashani_backend.pid"
 set "API_PORT=5000"
 set "OLLAMA_PORT=11434"
