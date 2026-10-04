@@ -58,6 +58,13 @@ function Message({ role, content }) {
             py: 0.2,
             borderRadius: 1,
           },
+
+          "& a": {
+            color: "inherit",
+            textDecoration: "underline",
+            textUnderlineOffset: "3px",
+            cursor: "pointer",
+          },
         }}
       >
         <ReactMarkdown remarkPlugins={[remarkGfm]}>
