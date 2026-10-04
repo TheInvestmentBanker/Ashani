@@ -59,7 +59,7 @@ function Sidebar({ open, onClose }) {
         <List>
           <ListItemButton>
             <ListItemText
-              primary="Welcome to Aritraa"
+              primary="Welcome to Ashani"
               primaryTypographyProps={{
                 noWrap: true,
               }}

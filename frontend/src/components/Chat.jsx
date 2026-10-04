@@ -69,7 +69,7 @@ function Chat({ messages, onSend, loading }) {
                 mb: 1,
               }}
             >
-              Aritraa
+              Ashani
             </Typography>
 
             <Typography color="text.secondary">
@@ -99,7 +99,7 @@ function Chat({ messages, onSend, loading }) {
             textAlign: "center",
           }}
         >
-          Aritraa is thinking...
+          Ashani is thinking...
         </Typography>
       )}
 

@@ -114,7 +114,7 @@ function Header({ onMenuClick }) {
           <MenuIcon />
         </IconButton>
 
-        {/* Aritraa */}
+        {/* Ashani */}
         <Typography
           variant="h6"
           sx={{
@@ -123,7 +123,7 @@ function Header({ onMenuClick }) {
             letterSpacing: "-0.02em",
           }}
         >
-          Aritraa
+          Ashani
         </Typography>
 
         <Box sx={{ flexGrow: 1 }} />

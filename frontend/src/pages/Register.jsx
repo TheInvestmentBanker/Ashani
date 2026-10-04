@@ -114,14 +114,14 @@ function Register() {
             mb: 1,
           }}
         >
-          Create your Aritraa account
+          Create your Ashani account
         </Typography>
 
         <Typography
           color="text.secondary"
           sx={{ mb: 3 }}
         >
-          Join Aritraa for free.
+          Join Ashani for free.
         </Typography>
 
         {error && (

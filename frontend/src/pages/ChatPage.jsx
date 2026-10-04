@@ -592,7 +592,7 @@ function ChatPage() {
                   ...lastMessage,
                   content:
                     error.message ||
-                    "Sorry, I couldn't connect to Aritraa's AI server.",
+                    "Sorry, I couldn't connect to Ashani's AI server.",
                 };
               }
 
@@ -628,7 +628,7 @@ function ChatPage() {
           color: "text.secondary",
         }}
       >
-        Loading Aritraa...
+        Loading Ashani...
       </Box>
     );
   }

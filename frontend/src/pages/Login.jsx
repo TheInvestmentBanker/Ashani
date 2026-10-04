@@ -117,7 +117,7 @@ function Login() {
           sx={{ mb: 3 }}
         >
           Sign in and continue your
-          conversation with Aritraa.
+          conversation with Ashani.
         </Typography>
 
         {error && (

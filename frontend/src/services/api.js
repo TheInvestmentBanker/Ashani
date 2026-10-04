@@ -49,7 +49,7 @@ export async function streamMessage(
 
   if (!response.ok) {
     let errorMessage =
-      "Failed to connect to Aritraa.";
+      "Failed to connect to Ashani.";
 
     try {
       const data = await response.json();

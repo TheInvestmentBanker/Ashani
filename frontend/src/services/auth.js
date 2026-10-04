@@ -1,6 +1,6 @@
-const TOKEN_KEY = "aritraa_token";
-const USER_KEY = "aritraa_user";
-const GUEST_ID_KEY = "aritraa_guest_id";
+const TOKEN_KEY = "ashani_token";
+const USER_KEY = "ashani_user";
+const GUEST_ID_KEY = "ashani_guest_id";
 
 export function saveAuth(token, user) {
   localStorage.setItem(TOKEN_KEY, token);
