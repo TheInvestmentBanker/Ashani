@@ -4,7 +4,7 @@ const path = require("path");
 const databasePath = path.join(
   __dirname,
   "..",
-  "aritraa.db"
+  "ashani.db"
 );
 
 const db = new sqlite3.Database(

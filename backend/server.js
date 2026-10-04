@@ -21,7 +21,8 @@ const PORT = process.env.PORT || 5000;
 
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://aritraa.vercel.app",
+  "https://ashani.online",
+  "https://www.ashani.online",
 ];
 
 app.use(
@@ -34,9 +35,9 @@ app.use(express.json());
 
 app.get("/", (req, res) => {
   res.json({
-    name: "Aritraa AI",
+    name: "Ashani AI",
     status: "online",
-    message: "Aritraa backend is running."
+    message: "Ashani backend is running."
   });
 });
 
@@ -55,5 +56,5 @@ app.use(
 );
 
 app.listen(PORT, () => {
-  console.log(`Aritraa backend running on http://localhost:${PORT}`);
+  console.log(`Ashani backend running on http://localhost:${PORT}`);
 });
