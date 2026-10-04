@@ -1,3 +1,4 @@
+require("dotenv").config();
 const authRoutes = require("./routes/authRoutes");
 const usageRoutes = require("./routes/usageRoutes");
 const conversationRoutes =
@@ -9,7 +10,7 @@ const {
 
 const express = require("express");
 const cors = require("cors");
-require("dotenv").config();
+
 
 const chatRoutes = require("./routes/chatRoutes");
 
@@ -18,7 +19,17 @@ initializeDatabase();
 
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://aritraa.vercel.app",
+];
+
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 app.get("/", (req, res) => {
