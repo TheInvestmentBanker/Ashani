@@ -249,9 +249,8 @@ export function getGuestGreeting() {
 
 export function getUserGreeting(user) {
   const name =
-    user?.nickname ||
-    user?.username ||
-    "friend";
+  user?.nickname ||
+  null;
 
   const greeting =
     randomItem(
