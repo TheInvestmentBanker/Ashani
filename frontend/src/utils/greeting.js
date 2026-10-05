@@ -248,9 +248,14 @@ export function getGuestGreeting() {
 */
 
 export function getUserGreeting(user) {
-  const name =
-  user?.nickname ||
-  null;
+  const name = user?.nickname;
+
+  // User has not chosen a preferred name yet.
+  // Do not use the username.
+  // Do not display "null".
+  if (!name) {
+    return getGuestGreeting();
+  }
 
   const greeting =
     randomItem(
