@@ -136,12 +136,17 @@ function ChatInput({ onSend, disabled = false }) {
 
   return (
     <Box
-  sx={{
-    width: "100%",
-    px: { xs: 1.5, sm: 2.5 },
-    backgroundColor: "transparent",
-  }}
->
+      sx={{
+        width: "100%",
+
+        px: {
+          xs: 1,
+          sm: 2.5,
+        },
+
+        backgroundColor: "transparent",
+      }}
+    >
       <Box
         component="form"
         onSubmit={(event) => {
@@ -149,76 +154,103 @@ function ChatInput({ onSend, disabled = false }) {
           handleSubmit();
         }}
         sx={{
-  width: "100%",
-  maxWidth: 820,
-  mx: "auto",
+          width: "100%",
 
-  display: "flex",
-  alignItems: "center",
+          maxWidth: 820,
 
-  minHeight: {
-    xs: 58,
-    sm: 64,
-  },
+          mx: "auto",
 
-  px: 1,
-  py: 0.75,
+          display: "grid",
 
-  border: "1px solid",
-  borderColor: listening
-    ? "primary.main"
-    : "divider",
+          /*
+           * Desktop:
+           *
+           * + | textarea | mic | send
+           *
+           * Mobile:
+           *
+           * textarea
+           * +             mic   send
+           */
+          gridTemplateColumns: {
+            xs: "1fr auto auto",
+            sm: "auto minmax(0, 1fr) auto auto",
+          },
 
-  borderRadius: "34px",
+          gridTemplateRows: {
+            xs: "auto auto",
+            sm: "auto",
+          },
 
-  backgroundColor: "background.paper",
+          alignItems: "center",
 
-  backdropFilter: "blur(18px)",
-  WebkitBackdropFilter: "blur(18px)",
+          minHeight: {
+            xs: 88,
+            sm: 64,
+          },
 
-  boxShadow:
-    "0 8px 35px rgba(0, 0, 0, 0.18)",
+          px: {
+            xs: 1,
+            sm: 1,
+          },
 
-  transition:
-    "border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease",
+          py: {
+            xs: 0.75,
+            sm: 0.75,
+          },
 
-  "&:hover": {
-    borderColor: "text.secondary",
-  },
+          border: "1px solid",
 
-  "&:focus-within": {
-    borderColor: "primary.main",
+          borderColor: listening
+            ? "primary.main"
+            : "divider",
 
-    boxShadow:
-      "0 8px 40px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(139, 92, 246, 0.12)",
+          borderRadius: {
+            xs: "24px",
+            sm: "34px",
+          },
 
-    transform: "translateY(-1px)",
-  },
-}}
+          backgroundColor:
+            "background.paper",
+
+          backdropFilter:
+            "blur(18px)",
+
+          WebkitBackdropFilter:
+            "blur(18px)",
+
+          boxShadow: {
+            xs: "0 8px 30px rgba(0, 0, 0, 0.22)",
+            sm: "0 8px 35px rgba(0, 0, 0, 0.18)",
+          },
+
+          transition:
+            "border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease",
+
+          "&:hover": {
+            borderColor: "text.secondary",
+          },
+
+          "&:focus-within": {
+            borderColor:
+              "primary.main",
+
+            boxShadow: {
+              xs: "0 8px 32px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(139, 92, 246, 0.12)",
+
+              sm: "0 8px 40px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(139, 92, 246, 0.12)",
+            },
+
+            transform:
+              "translateY(-1px)",
+          },
+        }}
       >
-        {/* Add */}
-        <Tooltip title="Add files and tools">
-          <IconButton
-            type="button"
-            size="medium"
-            disabled={disabled}
-            sx={{
-              width: 42,
-              height: 42,
-              flexShrink: 0,
-              color: "text.secondary",
-              opacity: 0.9,
-              "&:hover": {
-                backgroundColor: "action.hover",
-                color: "text.primary",
-              },
-            }}
-          >
-            <AddIcon />
-          </IconButton>
-        </Tooltip>
 
-        {/* Message */}
+        {/* =================================================
+            MESSAGE
+           ================================================= */}
+
         <Box
           ref={textareaRef}
           component="textarea"
@@ -231,34 +263,137 @@ function ChatInput({ onSend, disabled = false }) {
           placeholder="Ask something unexpected..."
           rows={1}
           sx={{
-            flex: 1,
+            /*
+             * Mobile:
+             * full-width first row
+             *
+             * Desktop:
+             * second grid column
+             */
+            gridColumn: {
+              xs: "1 / -1",
+              sm: "2",
+            },
+
+            gridRow: {
+              xs: "1",
+              sm: "1",
+            },
+
+            width: "100%",
+
             resize: "none",
 
             border: "none",
+
             outline: "none",
 
-            background: "transparent",
+            background:
+              "transparent",
 
-            color: "text.primary",
+            color:
+              "text.primary",
 
-            fontFamily: "inherit",
-            fontSize: "1rem",
+            fontFamily:
+              "inherit",
+
+            fontSize: {
+              xs: "0.95rem",
+              sm: "1rem",
+            },
+
             lineHeight: 1.5,
 
-            mx: 1,
-            py: 1,
+            mx: {
+              xs: 0,
+              sm: 1,
+            },
 
-            minHeight: "24px",
+            py: {
+              xs: 0.5,
+              sm: 1,
+            },
+
+            px: {
+              xs: 0.5,
+              sm: 0,
+            },
+
+            minHeight: {
+              xs: "32px",
+              sm: "24px",
+            },
+
             maxHeight: "140px",
 
             "&::placeholder": {
-              color: "text.secondary",
+              color:
+                "text.secondary",
+
               opacity: 0.9,
             },
           }}
         />
 
-        {/* Voice */}
+        {/* =================================================
+            ADD
+           ================================================= */}
+
+        <Tooltip title="Add files and tools">
+          <IconButton
+            type="button"
+            size="medium"
+            disabled={disabled}
+            sx={{
+              gridColumn: {
+                xs: "1",
+                sm: "1",
+              },
+
+              gridRow: {
+                xs: "2",
+                sm: "1",
+              },
+
+              justifySelf: {
+                xs: "start",
+                sm: "center",
+              },
+
+              width: {
+                xs: 38,
+                sm: 42,
+              },
+
+              height: {
+                xs: 38,
+                sm: 42,
+              },
+
+              flexShrink: 0,
+
+              color:
+                "text.secondary",
+
+              opacity: 0.9,
+
+              "&:hover": {
+                backgroundColor:
+                  "action.hover",
+
+                color:
+                  "text.primary",
+              },
+            }}
+          >
+            <AddIcon />
+          </IconButton>
+        </Tooltip>
+
+        {/* =================================================
+            VOICE
+           ================================================= */}
+
         <Tooltip
           title={
             listening
@@ -272,21 +407,42 @@ function ChatInput({ onSend, disabled = false }) {
             onClick={handleVoice}
             disabled={disabled}
             sx={{
-              width: 42,
-              height: 42,
+              gridColumn: {
+                xs: "2",
+                sm: "3",
+              },
+
+              gridRow: {
+                xs: "2",
+                sm: "1",
+              },
+
+              width: {
+                xs: 38,
+                sm: 42,
+              },
+
+              height: {
+                xs: 38,
+                sm: 42,
+              },
+
               flexShrink: 0,
 
               color: listening
                 ? "primary.main"
                 : "text.secondary",
 
-              backgroundColor: listening
-                ? "action.hover"
-                : "transparent",
+              backgroundColor:
+                listening
+                  ? "action.hover"
+                  : "transparent",
+
               borderRadius: "50%",
 
               "&:hover": {
-                backgroundColor: "action.hover",
+                backgroundColor:
+                  "action.hover",
               },
             }}
           >
@@ -298,46 +454,75 @@ function ChatInput({ onSend, disabled = false }) {
           </IconButton>
         </Tooltip>
 
-        {/* Send */}
+        {/* =================================================
+            SEND
+           ================================================= */}
+
         <Tooltip title="Send">
           <IconButton
             type="submit"
             disabled={
-              !message.trim() || disabled
+              !message.trim() ||
+              disabled
             }
             sx={{
-  width: 42,
-  height: 42,
-  flexShrink: 0,
+              gridColumn: {
+                xs: "3",
+                sm: "4",
+              },
 
-  borderRadius: "50%",
+              gridRow: {
+                xs: "2",
+                sm: "1",
+              },
 
-  backgroundColor:
-    message.trim() && !disabled
-      ? "primary.main"
-      : "action.disabledBackground",
+              width: {
+                xs: 38,
+                sm: 42,
+              },
 
-  color:
-    message.trim() && !disabled
-      ? "primary.contrastText"
-      : "text.disabled",
+              height: {
+                xs: 38,
+                sm: 42,
+              },
 
-  transition:
-    "transform 0.15s ease, background-color 0.2s ease",
+              flexShrink: 0,
 
-  "&:hover": {
-    backgroundColor: "primary.dark",
-    transform: "scale(1.04)",
-  },
+              borderRadius: "50%",
 
-  "&:active": {
-    transform: "scale(0.96)",
-  },
-}}
+              backgroundColor:
+                message.trim() &&
+                !disabled
+                  ? "primary.main"
+                  : "action.disabledBackground",
+
+              color:
+                message.trim() &&
+                !disabled
+                  ? "primary.contrastText"
+                  : "text.disabled",
+
+              transition:
+                "transform 0.15s ease, background-color 0.2s ease",
+
+              "&:hover": {
+                backgroundColor:
+                  "primary.dark",
+
+                transform:
+                  "scale(1.04)",
+              },
+
+              "&:active": {
+                transform:
+                  "scale(0.96)",
+              },
+            }}
           >
             <ArrowUpwardIcon />
           </IconButton>
         </Tooltip>
+
       </Box>
     </Box>
   );

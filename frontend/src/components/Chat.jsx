@@ -15,11 +15,14 @@ function Chat({ messages, onSend, loading }) {
   const messagesEndRef = useRef(null);
   const theme = useTheme();
 
-  const isDarkMode = theme.palette.mode === "dark";
+  const isDarkMode =
+    theme.palette.mode === "dark";
 
   const galaxyImage = isDarkMode
     ? galaxyDark
     : galaxyLight;
+
+  const isHome = messages.length === 0;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({
@@ -27,17 +30,28 @@ function Chat({ messages, onSend, loading }) {
     });
   }, [messages]);
 
-  const isHome = messages.length === 0;
-
   return (
     <Box
       sx={{
-        height: "100%",
+        height: {
+          xs: "100dvh",
+          md: "100%",
+        },
+
+        minHeight: {
+          xs: "100dvh",
+          md: 0,
+        },
+
         display: "flex",
         flexDirection: "column",
+
         position: "relative",
+
         overflow: "hidden",
-        backgroundColor: "background.default",
+
+        backgroundColor:
+          "background.default",
       }}
     >
 
@@ -50,19 +64,27 @@ function Chat({ messages, onSend, loading }) {
           sx={{
             flex: 1,
             minHeight: 0,
+
             position: "relative",
+
             overflow: "hidden",
 
             display: "flex",
             flexDirection: "column",
+
             alignItems: "center",
             justifyContent: "center",
 
-            px: 2,
+            px: {
+              xs: 1.5,
+              sm: 2,
+            },
           }}
         >
 
-          {/* Galaxy */}
+          {/* =================================================
+              GALAXY
+             ================================================= */}
 
           <Box
             component="img"
@@ -73,23 +95,34 @@ function Chat({ messages, onSend, loading }) {
               position: "absolute",
 
               width: {
-               xs: "110%",
-               sm: "95%",
-               md: "700px",
-               lg: "780px",
+                xs: "145%",
+                sm: "110%",
+                md: "700px",
+                lg: "780px",
               },
 
               maxWidth: "none",
 
               left: "50%",
-              top: "43%",
+
+              top: {
+                xs: "42%",
+                sm: "43%",
+                md: "43%",
+              },
 
               transform:
                 "translate(-50%, -50%)",
 
-              opacity: isDarkMode
-                ? 0.30
-                : 0.40,
+              opacity: {
+                xs: isDarkMode
+                  ? 0.20
+                  : 0.055,
+
+                md: isDarkMode
+                  ? 0.30
+                  : 0.40,
+              },
 
               pointerEvents: "none",
               userSelect: "none",
@@ -102,40 +135,50 @@ function Chat({ messages, onSend, loading }) {
             }}
           />
 
-          {/* Greeting + Input */}
+          {/* =================================================
+              GREETING + INPUT
+             ================================================= */}
 
           <Box
             sx={{
               position: "relative",
+
               zIndex: 2,
 
               width: "100%",
+
               maxWidth: 820,
 
               display: "flex",
+
               flexDirection: "column",
+
               alignItems: "center",
 
               transform: {
-                xs: "translateY(-45px)",
+                xs: "translateY(-35px)",
+                sm: "translateY(-45px)",
                 md: "translateY(-65px)",
               },
             }}
           >
 
-            {/* Greeting */}
+            {/* =================================================
+                GREETING
+               ================================================= */}
 
             <Typography
               sx={{
                 fontSize: {
-                  xs: "2rem",
+                  xs: "1.75rem",
                   sm: "2.4rem",
                   md: "2.8rem",
                 },
 
                 fontWeight: 400,
 
-                letterSpacing: "-0.035em",
+                letterSpacing:
+                  "-0.035em",
 
                 lineHeight: 1.2,
 
@@ -143,8 +186,14 @@ function Chat({ messages, onSend, loading }) {
 
                 color: "text.primary",
 
+                px: {
+                  xs: 1,
+                  sm: 0,
+                },
+
                 mb: {
-                  xs: 3,
+                  xs: 2.5,
+                  sm: 3,
                   md: 4,
                 },
 
@@ -156,7 +205,9 @@ function Chat({ messages, onSend, loading }) {
               Hi Rahul, what's on your mind?
             </Typography>
 
-            {/* Chat Input */}
+            {/* =================================================
+                HOME CHAT INPUT
+               ================================================= */}
 
             <Box
               sx={{
@@ -180,6 +231,7 @@ function Chat({ messages, onSend, loading }) {
         <Box
           sx={{
             flex: 1,
+
             minHeight: 0,
 
             overflowY: "auto",
@@ -190,7 +242,11 @@ function Chat({ messages, onSend, loading }) {
               md: 4,
             },
 
-            py: 4,
+            py: {
+              xs: 2.5,
+              sm: 3,
+              md: 4,
+            },
 
             scrollbarWidth: "thin",
 
@@ -202,7 +258,8 @@ function Chat({ messages, onSend, loading }) {
             },
 
             "&::-webkit-scrollbar-track": {
-              background: "transparent",
+              background:
+                "transparent",
             },
 
             "&::-webkit-scrollbar-thumb": {
@@ -219,23 +276,35 @@ function Chat({ messages, onSend, loading }) {
           }}
         >
 
-          <Box
-  sx={{
-    width: "100%",
-    maxWidth: 900,
-    mx: "auto",
-  }}
->
-  {messages.map((message, index) => (
-    <Message
-      key={index}
-      role={message.role}
-      content={message.content}
-    />
-  ))}
+          {/* =================================================
+              CENTERED CONVERSATION
+             ================================================= */}
 
-  <div ref={messagesEndRef} />
-</Box>
+          <Box
+            sx={{
+              width: "100%",
+
+              maxWidth: 900,
+
+              mx: "auto",
+            }}
+          >
+
+            {messages.map(
+              (message, index) => (
+                <Message
+                  key={index}
+                  role={message.role}
+                  content={message.content}
+                />
+              )
+            )}
+
+            <div
+              ref={messagesEndRef}
+            />
+
+          </Box>
 
         </Box>
       )}
@@ -250,11 +319,53 @@ function Chat({ messages, onSend, loading }) {
           color="text.secondary"
           sx={{
             px: 2,
-            pb: 1,
+
+            pb: {
+              xs: 0.75,
+              sm: 1,
+            },
+
             textAlign: "center",
+
+            fontSize: {
+              xs: "0.75rem",
+              sm: "0.875rem",
+            },
           }}
         >
           Ashani is thinking...
+        </Typography>
+      )}
+
+      {/* =====================================================
+          MOBILE DISCLAIMER
+          Only shown during conversations
+         ===================================================== */}
+
+      {!isHome && (
+        <Typography
+          variant="caption"
+          sx={{
+            display: {
+              xs: "block",
+              md: "none",
+            },
+
+            textAlign: "center",
+
+            color: "text.secondary",
+
+            fontSize: "0.68rem",
+
+            mb: 0.75,
+
+            px: 2,
+
+            opacity: 0.85,
+          }}
+        >
+          Ashani can make mistakes.
+          Check important information.
         </Typography>
       )}
 
@@ -264,22 +375,23 @@ function Chat({ messages, onSend, loading }) {
          ===================================================== */}
 
       {!isHome && (
-  <Box
-    sx={{
-      width: "100%",
-      pb: {
-        xs: 1.5,
-        sm: 2,
-        md: 2.5,
-      },
-    }}
-  >
-    <ChatInput
-      onSend={onSend}
-      disabled={loading}
-    />
-  </Box>
-)}
+        <Box
+          sx={{
+            width: "100%",
+
+            pb: {
+              xs: 1,
+              sm: 2,
+              md: 2.5,
+            },
+          }}
+        >
+          <ChatInput
+            onSend={onSend}
+            disabled={loading}
+          />
+        </Box>
+      )}
 
     </Box>
   );

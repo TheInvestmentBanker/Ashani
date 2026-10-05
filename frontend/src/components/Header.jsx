@@ -19,14 +19,17 @@ import DarkModeIcon from "@mui/icons-material/DarkMode";
 
 import { getUser, logout } from "../services/auth";
 import { getUsage } from "../services/api";
+
 import { useThemeMode } from "../theme/ThemeModeContext";
 
 function Header({ onMenuClick }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const [usage, setUsage] = useState(null);
-  const [usageLoading, setUsageLoading] = useState(false);
+  const [usageLoading, setUsageLoading] =
+    useState(false);
 
-  const { mode, toggleTheme } = useThemeMode();
+  const { mode, toggleTheme } =
+    useThemeMode();
 
   const user = getUser();
   const userId = user?.id;
@@ -96,102 +99,209 @@ function Header({ onMenuClick }) {
       position="fixed"
       elevation={0}
       sx={{
-        backgroundColor: "background.default",
-backdropFilter: "blur(16px)",
-WebkitBackdropFilter: "blur(16px)",
-borderBottom: 1,
-borderColor: "divider",
+        backgroundColor:
+          "background.default",
+
+        backdropFilter:
+          "blur(16px)",
+
+        WebkitBackdropFilter:
+          "blur(16px)",
+
+        borderBottom: 1,
+        borderColor: "divider",
+
+        zIndex: 1200,
       }}
     >
       <Toolbar
         sx={{
-          minHeight: "64px !important",
-          px: { xs: 1.5, sm: 2.5 },
+          minHeight: {
+            xs: "56px !important",
+            sm: "64px !important",
+          },
+
+          px: {
+            xs: 0.75,
+            sm: 2.5,
+          },
         }}
       >
-        {/* Menu */}
+
+        {/* =================================================
+            MENU
+           ================================================= */}
+
         <IconButton
           color="inherit"
           onClick={onMenuClick}
+          aria-label="Open menu"
           sx={{
-            mr: 1,
+            mr: {
+              xs: 0.5,
+              sm: 1,
+            },
+
             color: "text.primary",
+
+            width: {
+              xs: 40,
+              sm: 44,
+            },
+
+            height: {
+              xs: 40,
+              sm: 44,
+            },
           }}
         >
           <MenuIcon />
         </IconButton>
 
-        {/* Ashani */}
+
+        {/* =================================================
+            ASHANI BRAND
+           ================================================= */}
+
         <Typography
-          variant="h6"
           sx={{
             fontWeight: 700,
+
+            fontSize: {
+              xs: "1.05rem",
+              sm: "1.25rem",
+            },
+
             color: "text.primary",
-            letterSpacing: "-0.02em",
+
+            letterSpacing:
+              "-0.025em",
+
+            lineHeight: 1,
           }}
         >
           ASHANI
         </Typography>
 
-        <Box sx={{ flexGrow: 1 }} />
 
-{/* Theme toggle */}
+        {/* =================================================
+            FLEXIBLE SPACE
+           ================================================= */}
 
-<IconButton
-  onClick={toggleTheme}
-  aria-label={
-    mode === "dark"
-      ? "Switch to light mode"
-      : "Switch to dark mode"
-  }
-  sx={{
-    width: 40,
-    height: 40,
-    mr: 1,
+        <Box
+          sx={{
+            flexGrow: 1,
+          }}
+        />
 
-    color: "text.secondary",
 
-    "&:hover": {
-      color: "text.primary",
-      backgroundColor: "action.hover",
-    },
+        {/* =================================================
+            THEME TOGGLE
+           ================================================= */}
 
-    transition:
-      "transform 0.2s ease, color 0.2s ease",
+        <IconButton
+          onClick={toggleTheme}
+          aria-label={
+            mode === "dark"
+              ? "Switch to light mode"
+              : "Switch to dark mode"
+          }
+          title={
+            mode === "dark"
+              ? "Light mode"
+              : "Dark mode"
+          }
+          sx={{
+            width: {
+              xs: 38,
+              sm: 40,
+            },
 
-    "&:active": {
-      transform: "scale(0.9)",
-    },
-  }}
->
-  {mode === "dark" ? (
-    <LightModeIcon fontSize="small" />
-  ) : (
-    <DarkModeIcon fontSize="small" />
-  )}
-</IconButton>
+            height: {
+              xs: 38,
+              sm: 40,
+            },
 
-{/* Logged-in user */}
+            mr: {
+              xs: 0.25,
+              sm: 1,
+            },
+
+            color: "text.secondary",
+
+            "&:hover": {
+              color:
+                "text.primary",
+
+              backgroundColor:
+                "action.hover",
+            },
+
+            transition:
+              "transform 0.2s ease, color 0.2s ease",
+
+            "&:active": {
+              transform:
+                "scale(0.9)",
+            },
+          }}
+        >
+          {mode === "dark" ? (
+            <LightModeIcon
+              fontSize="small"
+            />
+          ) : (
+            <DarkModeIcon
+              fontSize="small"
+            />
+          )}
+        </IconButton>
+
+
+        {/* =================================================
+            LOGGED-IN USER
+           ================================================= */}
+
         {user ? (
           <>
             <IconButton
-              onClick={handleAccountClick}
+              onClick={
+                handleAccountClick
+              }
+              aria-label="Account menu"
               sx={{
-                p: 0.5,
-                color: "text.secondary",
+                p: 0.25,
+
+                color:
+                  "text.secondary",
               }}
             >
               <Avatar
                 sx={{
-                  width: 34,
-                  height: 34,
-                  bgcolor: "action.hover",
-                  color: "text.secondary",
+                  width: {
+                    xs: 32,
+                    sm: 34,
+                  },
+
+                  height: {
+                    xs: 32,
+                    sm: 34,
+                  },
+
+                  bgcolor:
+                    "action.hover",
+
+                  color:
+                    "text.secondary",
                 }}
               >
                 <AccountCircleIcon />
               </Avatar>
             </IconButton>
+
+            {/* =============================================
+                ACCOUNT MENU
+               ============================================= */}
 
             <Menu
               anchorEl={anchorEl}
@@ -209,12 +319,25 @@ borderColor: "divider",
                 paper: {
                   sx: {
                     mt: 1,
-                    width: 270,
+
+                    width: {
+                      xs: "calc(100vw - 24px)",
+                      sm: 270,
+                    },
+
+                    maxWidth: 320,
+
                     borderRadius: 2.5,
+
+                    maxHeight:
+                      "calc(100vh - 80px)",
+
+                    overflowY: "auto",
                   },
                 },
               }}
             >
+
               {/* Account information */}
 
               <Box
@@ -238,12 +361,14 @@ borderColor: "divider",
                   color="text.secondary"
                   sx={{
                     mt: 0.25,
-                    wordBreak: "break-word",
+                    wordBreak:
+                      "break-word",
                   }}
                 >
                   {user.email}
                 </Typography>
               </Box>
+
 
               {/* Usage */}
 
@@ -302,7 +427,9 @@ borderColor: "divider",
 
                     <LinearProgress
                       variant="determinate"
-                      value={usagePercent}
+                      value={
+                        usagePercent
+                      }
                       sx={{
                         height: 6,
                         borderRadius: 999,
@@ -333,78 +460,150 @@ borderColor: "divider",
                 )}
               </Box>
 
+
+              {/* Divider */}
+
               <Box
                 sx={{
                   borderTop: 1,
-                  borderColor: "divider",
+                  borderColor:
+                    "divider",
                 }}
               />
 
-              <MenuItem onClick={handleClose}>
+
+              {/* Menu items */}
+
+              <MenuItem
+                onClick={handleClose}
+              >
                 Profile
               </MenuItem>
 
-              <MenuItem onClick={handleClose}>
+              <MenuItem
+                onClick={handleClose}
+              >
                 Settings
               </MenuItem>
 
-              <MenuItem onClick={handleLogout}>
+              <MenuItem
+                onClick={handleLogout}
+              >
                 Log out
               </MenuItem>
+
             </Menu>
           </>
         ) : (
-          /* Guest */
+
+          /* =================================================
+             GUEST
+             ================================================= */
+
           <Box
             sx={{
               display: "flex",
+
               alignItems: "center",
-              gap: 1,
+
+              gap: {
+                xs: 0.25,
+                sm: 1,
+              },
             }}
           >
+
+            {/* Login */}
+
             <Typography
               component="button"
               onClick={handleLogin}
               sx={{
                 border: "none",
-                background: "transparent",
-                color: "text.secondary",
+
+                background:
+                  "transparent",
+
+                color:
+                  "text.secondary",
+
                 cursor: "pointer",
+
                 font: "inherit",
-                px: 1.5,
+
+                fontSize: {
+                  xs: "0.82rem",
+                  sm: "0.95rem",
+                },
+
+                px: {
+                  xs: 0.75,
+                  sm: 1.5,
+                },
+
                 py: 0.75,
+
                 borderRadius: 2,
+
                 "&:hover": {
-                  color: "text.primary",
-                  backgroundColor: "action.hover",
+                  color:
+                    "text.primary",
+
+                  backgroundColor:
+                    "action.hover",
                 },
               }}
             >
               Log in
             </Typography>
 
+
+            {/* Sign up */}
+
             <Typography
               component="button"
               onClick={handleRegister}
               sx={{
                 border: "none",
-                background: "transparent",
-                color: "primary.main",
+
+                background:
+                  "transparent",
+
+                color:
+                  "primary.main",
+
                 cursor: "pointer",
+
                 font: "inherit",
+
+                fontSize: {
+                  xs: "0.82rem",
+                  sm: "0.95rem",
+                },
+
                 fontWeight: 600,
-                px: 1.5,
+
+                px: {
+                  xs: 0.75,
+                  sm: 1.5,
+                },
+
                 py: 0.75,
+
                 borderRadius: 2,
+
                 "&:hover": {
-                  backgroundColor: "action.hover",
+                  backgroundColor:
+                    "action.hover",
                 },
               }}
             >
               Sign up
             </Typography>
+
           </Box>
         )}
+
       </Toolbar>
     </AppBar>
   );
