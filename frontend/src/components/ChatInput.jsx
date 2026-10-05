@@ -136,13 +136,12 @@ function ChatInput({ onSend, disabled = false }) {
 
   return (
     <Box
-      sx={{
-        px: { xs: 1.5, sm: 2.5 },
-        pb: { xs: 1.5, sm: 2.5 },
-        pt: 1.5,
-        backgroundColor: "background.default",
-      }}
-    >
+  sx={{
+    width: "100%",
+    px: { xs: 1.5, sm: 2.5 },
+    backgroundColor: "transparent",
+  }}
+>
       <Box
         component="form"
         onSubmit={(event) => {
@@ -150,36 +149,52 @@ function ChatInput({ onSend, disabled = false }) {
           handleSubmit();
         }}
         sx={{
-          width: "100%",
-          maxWidth: 900,
-          mx: "auto",
+  width: "100%",
+  maxWidth: 820,
+  mx: "auto",
 
-          display: "flex",
-          alignItems: "center",
+  display: "flex",
+  alignItems: "center",
 
-          minHeight: 60,
+  minHeight: {
+    xs: 58,
+    sm: 64,
+  },
 
-          px: 1,
-          py: 0.75,
+  px: 1,
+  py: 0.75,
 
-          border: 1,
-          borderColor: listening
-            ? "primary.main"
-            : "divider",
+  border: "1px solid",
+  borderColor: listening
+    ? "primary.main"
+    : "divider",
 
-          borderRadius: "32px",
+  borderRadius: "34px",
 
-          backgroundColor: "background.paper",
+  backgroundColor: "background.paper",
 
-          transition:
-            "border-color 0.2s ease, box-shadow 0.2s ease",
+  backdropFilter: "blur(18px)",
+  WebkitBackdropFilter: "blur(18px)",
 
-          "&:focus-within": {
-            borderColor: "primary.main",
-            boxShadow:
-              "0 0 0 1px rgba(139, 92, 246, 0.15)",
-          },
-        }}
+  boxShadow:
+    "0 8px 35px rgba(0, 0, 0, 0.18)",
+
+  transition:
+    "border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease",
+
+  "&:hover": {
+    borderColor: "text.secondary",
+  },
+
+  "&:focus-within": {
+    borderColor: "primary.main",
+
+    boxShadow:
+      "0 8px 40px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(139, 92, 246, 0.12)",
+
+    transform: "translateY(-1px)",
+  },
+}}
       >
         {/* Add */}
         <Tooltip title="Add files and tools">
@@ -192,7 +207,7 @@ function ChatInput({ onSend, disabled = false }) {
               height: 42,
               flexShrink: 0,
               color: "text.secondary",
-
+              opacity: 0.9,
               "&:hover": {
                 backgroundColor: "action.hover",
                 color: "text.primary",
@@ -238,7 +253,7 @@ function ChatInput({ onSend, disabled = false }) {
 
             "&::placeholder": {
               color: "text.secondary",
-              opacity: 1,
+              opacity: 0.9,
             },
           }}
         />
@@ -268,6 +283,7 @@ function ChatInput({ onSend, disabled = false }) {
               backgroundColor: listening
                 ? "action.hover"
                 : "transparent",
+              borderRadius: "50%",
 
               "&:hover": {
                 backgroundColor: "action.hover",
@@ -290,24 +306,34 @@ function ChatInput({ onSend, disabled = false }) {
               !message.trim() || disabled
             }
             sx={{
-              width: 42,
-              height: 42,
-              flexShrink: 0,
+  width: 42,
+  height: 42,
+  flexShrink: 0,
 
-              backgroundColor:
-                message.trim() && !disabled
-                  ? "primary.main"
-                  : "action.disabledBackground",
+  borderRadius: "50%",
 
-              color:
-                message.trim() && !disabled
-                  ? "primary.contrastText"
-                  : "text.disabled",
+  backgroundColor:
+    message.trim() && !disabled
+      ? "primary.main"
+      : "action.disabledBackground",
 
-              "&:hover": {
-                backgroundColor: "primary.dark",
-              },
-            }}
+  color:
+    message.trim() && !disabled
+      ? "primary.contrastText"
+      : "text.disabled",
+
+  transition:
+    "transform 0.15s ease, background-color 0.2s ease",
+
+  "&:hover": {
+    backgroundColor: "primary.dark",
+    transform: "scale(1.04)",
+  },
+
+  "&:active": {
+    transform: "scale(0.96)",
+  },
+}}
           >
             <ArrowUpwardIcon />
           </IconButton>
