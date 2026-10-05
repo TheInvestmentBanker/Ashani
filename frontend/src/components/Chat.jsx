@@ -88,8 +88,8 @@ function Chat({ messages, onSend, loading }) {
                 "translate(-50%, -50%)",
 
               opacity: isDarkMode
-                ? 0.25
-                : 0.07,
+                ? 0.30
+                : 0.50,
 
               pointerEvents: "none",
               userSelect: "none",
@@ -117,8 +117,8 @@ function Chat({ messages, onSend, loading }) {
               alignItems: "center",
 
               transform: {
-                xs: "translateY(-25px)",
-                md: "translateY(-35px)",
+                xs: "translateY(-45px)",
+                md: "translateY(-65px)",
               },
             }}
           >
@@ -185,7 +185,8 @@ function Chat({ messages, onSend, loading }) {
             overflowY: "auto",
 
             px: {
-              xs: 2,
+              xs: 1.5,
+              sm: 3,
               md: 4,
             },
 
@@ -218,15 +219,23 @@ function Chat({ messages, onSend, loading }) {
           }}
         >
 
-          {messages.map((message, index) => (
-            <Message
-              key={index}
-              role={message.role}
-              content={message.content}
-            />
-          ))}
+          <Box
+  sx={{
+    width: "100%",
+    maxWidth: 900,
+    mx: "auto",
+  }}
+>
+  {messages.map((message, index) => (
+    <Message
+      key={index}
+      role={message.role}
+      content={message.content}
+    />
+  ))}
 
-          <div ref={messagesEndRef} />
+  <div ref={messagesEndRef} />
+</Box>
 
         </Box>
       )}
@@ -255,11 +264,22 @@ function Chat({ messages, onSend, loading }) {
          ===================================================== */}
 
       {!isHome && (
-        <ChatInput
-          onSend={onSend}
-          disabled={loading}
-        />
-      )}
+  <Box
+    sx={{
+      width: "100%",
+      pb: {
+        xs: 1.5,
+        sm: 2,
+        md: 2.5,
+      },
+    }}
+  >
+    <ChatInput
+      onSend={onSend}
+      disabled={loading}
+    />
+  </Box>
+)}
 
     </Box>
   );
