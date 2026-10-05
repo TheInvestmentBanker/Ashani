@@ -14,14 +14,19 @@ import {
 
 import MenuIcon from "@mui/icons-material/Menu";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import LightModeIcon from "@mui/icons-material/LightMode";
+import DarkModeIcon from "@mui/icons-material/DarkMode";
 
 import { getUser, logout } from "../services/auth";
 import { getUsage } from "../services/api";
+import { useThemeMode } from "../theme/ThemeModeContext";
 
 function Header({ onMenuClick }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const [usage, setUsage] = useState(null);
   const [usageLoading, setUsageLoading] = useState(false);
+
+  const { mode, toggleTheme } = useThemeMode();
 
   const user = getUser();
   const userId = user?.id;
@@ -92,8 +97,10 @@ function Header({ onMenuClick }) {
       elevation={0}
       sx={{
         backgroundColor: "background.default",
-        borderBottom: 1,
-        borderColor: "divider",
+backdropFilter: "blur(16px)",
+WebkitBackdropFilter: "blur(16px)",
+borderBottom: 1,
+borderColor: "divider",
       }}
     >
       <Toolbar
@@ -128,7 +135,43 @@ function Header({ onMenuClick }) {
 
         <Box sx={{ flexGrow: 1 }} />
 
-        {/* Logged-in user */}
+{/* Theme toggle */}
+
+<IconButton
+  onClick={toggleTheme}
+  aria-label={
+    mode === "dark"
+      ? "Switch to light mode"
+      : "Switch to dark mode"
+  }
+  sx={{
+    width: 40,
+    height: 40,
+    mr: 1,
+
+    color: "text.secondary",
+
+    "&:hover": {
+      color: "text.primary",
+      backgroundColor: "action.hover",
+    },
+
+    transition:
+      "transform 0.2s ease, color 0.2s ease",
+
+    "&:active": {
+      transform: "scale(0.9)",
+    },
+  }}
+>
+  {mode === "dark" ? (
+    <LightModeIcon fontSize="small" />
+  ) : (
+    <DarkModeIcon fontSize="small" />
+  )}
+</IconButton>
+
+{/* Logged-in user */}
         {user ? (
           <>
             <IconButton

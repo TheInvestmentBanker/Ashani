@@ -21,8 +21,8 @@ export const colors = {
     primary: "#6D28D9",
     secondary: "#0891B2",
 
-    background: "#F8F8FA",
-    surface: "#FFFFFF",
+    background: "#FAF8F2",
+    surface: "#FFFEFA",
     surfaceHover: "#F1F1F4",
 
     text: "#18181B",

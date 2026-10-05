@@ -27,6 +27,8 @@ function Chat({ messages, onSend, loading }) {
     });
   }, [messages]);
 
+  const isHome = messages.length === 0;
+
   return (
     <Box
       sx={{
@@ -38,129 +40,97 @@ function Chat({ messages, onSend, loading }) {
         backgroundColor: "background.default",
       }}
     >
+
       {/* =====================================================
-          HOME SCREEN GALAXY
-          Only visible before the first message is sent
+          HOME SCREEN
          ===================================================== */}
 
-      {messages.length === 0 && (
+      {isHome ? (
         <Box
-          component="img"
-          src={galaxyImage}
-          alt=""
-          aria-hidden="true"
           sx={{
-            position: "absolute",
+            flex: 1,
+            minHeight: 0,
+            position: "relative",
+            overflow: "hidden",
 
-            width: {
-              xs: "150%",
-              sm: "120%",
-              md: "1000px",
-              lg: "1150px",
-            },
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
 
-            maxWidth: "none",
-
-            left: "50%",
-            top: "47%",
-
-            transform: "translate(-50%, -50%)",
-
-            opacity: isDarkMode ? 0.38 : 0.09,
-
-            pointerEvents: "none",
-            userSelect: "none",
-
-            zIndex: 0,
-
-            filter: isDarkMode
-              ? "saturate(1.05)"
-              : "contrast(1.05)",
+            px: 2,
           }}
-        />
-      )}
+        >
 
-      {/* =====================================================
-          CHAT / HOME CONTENT
-         ===================================================== */}
+          {/* Galaxy */}
 
-      <Box
-        sx={{
-          flex: 1,
-          minHeight: 0,
-          position: "relative",
-          zIndex: 1,
+          <Box
+            component="img"
+            src={galaxyImage}
+            alt=""
+            aria-hidden="true"
+            sx={{
+              position: "absolute",
 
-          overflowY: "auto",
+              width: {
+               xs: "110%",
+               sm: "95%",
+               md: "700px",
+               lg: "780px",
+              },
 
-          px: {
-            xs: 2,
-            md: 4,
-          },
+              maxWidth: "none",
 
-          py: messages.length === 0 ? 0 : 4,
+              left: "50%",
+              top: "43%",
 
-          // Firefox
-          scrollbarWidth: "thin",
-          scrollbarColor:
-            "rgba(255,255,255,0.18) transparent",
+              transform:
+                "translate(-50%, -50%)",
 
-          // Chrome / Edge / Safari
-          "&::-webkit-scrollbar": {
-            width: "6px",
-          },
+              opacity: isDarkMode
+                ? 0.25
+                : 0.07,
 
-          "&::-webkit-scrollbar-track": {
-            background: "transparent",
-          },
+              pointerEvents: "none",
+              userSelect: "none",
 
-          "&::-webkit-scrollbar-thumb": {
-            backgroundColor:
-              "rgba(255,255,255,0.18)",
-            borderRadius: "999px",
-          },
+              zIndex: 0,
 
-          "&::-webkit-scrollbar-thumb:hover": {
-            backgroundColor:
-              "rgba(255,255,255,0.30)",
-          },
-        }}
-      >
-        {messages.length === 0 ? (
-          /* =================================================
-             HOME / WELCOME SCREEN
-             ================================================= */
+              filter: isDarkMode
+                ? "saturate(1.05)"
+                : "contrast(1.05)",
+            }}
+          />
+
+          {/* Greeting + Input */}
 
           <Box
             sx={{
-              height: "100%",
-              minHeight: 400,
-
-              display: "flex",
-              flexDirection: "column",
-
-              alignItems: "center",
-              justifyContent: "center",
-
-              textAlign: "center",
-
               position: "relative",
               zIndex: 2,
 
-              pb: {
-                xs: 4,
-                md: 6,
+              width: "100%",
+              maxWidth: 820,
+
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+
+              transform: {
+                xs: "translateY(-25px)",
+                md: "translateY(-35px)",
               },
             }}
           >
+
             {/* Greeting */}
 
             <Typography
               sx={{
                 fontSize: {
                   xs: "2rem",
-                  sm: "2.5rem",
-                  md: "3rem",
+                  sm: "2.4rem",
+                  md: "2.8rem",
                 },
 
                 fontWeight: 400,
@@ -169,11 +139,13 @@ function Chat({ messages, onSend, loading }) {
 
                 lineHeight: 1.2,
 
+                textAlign: "center",
+
                 color: "text.primary",
 
                 mb: {
-                  xs: 3.5,
-                  md: 4.5,
+                  xs: 3,
+                  md: 4,
                 },
 
                 textShadow: isDarkMode
@@ -183,23 +155,81 @@ function Chat({ messages, onSend, loading }) {
             >
               Hi Rahul, what's on your mind?
             </Typography>
-          </Box>
-        ) : (
-          /* =================================================
-             CHAT MESSAGES
-             ================================================= */
 
-          messages.map((message, index) => (
+            {/* Chat Input */}
+
+            <Box
+              sx={{
+                width: "100%",
+              }}
+            >
+              <ChatInput
+                onSend={onSend}
+                disabled={loading}
+              />
+            </Box>
+
+          </Box>
+        </Box>
+      ) : (
+
+        /* =====================================================
+           NORMAL CHAT
+           ===================================================== */
+
+        <Box
+          sx={{
+            flex: 1,
+            minHeight: 0,
+
+            overflowY: "auto",
+
+            px: {
+              xs: 2,
+              md: 4,
+            },
+
+            py: 4,
+
+            scrollbarWidth: "thin",
+
+            scrollbarColor:
+              "rgba(255,255,255,0.18) transparent",
+
+            "&::-webkit-scrollbar": {
+              width: "6px",
+            },
+
+            "&::-webkit-scrollbar-track": {
+              background: "transparent",
+            },
+
+            "&::-webkit-scrollbar-thumb": {
+              backgroundColor:
+                "rgba(255,255,255,0.18)",
+
+              borderRadius: "999px",
+            },
+
+            "&::-webkit-scrollbar-thumb:hover": {
+              backgroundColor:
+                "rgba(255,255,255,0.30)",
+            },
+          }}
+        >
+
+          {messages.map((message, index) => (
             <Message
               key={index}
               role={message.role}
               content={message.content}
             />
-          ))
-        )}
+          ))}
 
-        <div ref={messagesEndRef} />
-      </Box>
+          <div ref={messagesEndRef} />
+
+        </Box>
+      )}
 
       {/* =====================================================
           THINKING INDICATOR
@@ -213,8 +243,6 @@ function Chat({ messages, onSend, loading }) {
             px: 2,
             pb: 1,
             textAlign: "center",
-            position: "relative",
-            zIndex: 2,
           }}
         >
           Ashani is thinking...
@@ -222,27 +250,17 @@ function Chat({ messages, onSend, loading }) {
       )}
 
       {/* =====================================================
-          CHAT INPUT
+          NORMAL CHAT INPUT
+          Only appears after conversation starts
          ===================================================== */}
 
-      <Box
-        sx={{
-          position: "relative",
-          zIndex: 3,
-
-          width: "100%",
-
-          pb: {
-            xs: 1.5,
-            md: 2.5,
-          },
-        }}
-      >
+      {!isHome && (
         <ChatInput
           onSend={onSend}
           disabled={loading}
         />
-      </Box>
+      )}
+
     </Box>
   );
 }

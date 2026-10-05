@@ -8,26 +8,34 @@ import ChatPage from "./pages/ChatPage";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 
+import {
+  ThemeModeProvider,
+} from "./theme/ThemeModeContext";
+
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route
-          path="/"
-          element={<ChatPage />}
-        />
+    <ThemeModeProvider>
+      <BrowserRouter>
+        <Routes>
 
-        <Route
-          path="/login"
-          element={<Login />}
-        />
+          <Route
+            path="/"
+            element={<ChatPage />}
+          />
 
-        <Route
-          path="/register"
-          element={<Register />}
-        />
-      </Routes>
-    </BrowserRouter>
+          <Route
+            path="/login"
+            element={<Login />}
+          />
+
+          <Route
+            path="/register"
+            element={<Register />}
+          />
+
+        </Routes>
+      </BrowserRouter>
+    </ThemeModeProvider>
   );
 }
 
