@@ -8,6 +8,59 @@ const {
   recordUsage,
 } = require("../services/usageService");
 
+const {
+  getUserById,
+  updateNickname,
+} = require("../services/userService");
+
+/*
+|--------------------------------------------------------------------------
+| Nickname detection
+|--------------------------------------------------------------------------
+*/
+
+function detectNickname(message) {
+  if (
+    typeof message !== "string" ||
+    !message.trim()
+  ) {
+    return null;
+  }
+
+  const text = message.trim();
+
+  const patterns = [
+    /^(?:please\s+)?call\s+me\s+["']?([^"'.,!?]+)["']?[\s.!?]*$/i,
+
+    /^you\s+can\s+call\s+me\s+["']?([^"'.,!?]+)["']?[\s.!?]*$/i,
+
+    /^from\s+now\s+on\s*,?\s*call\s+me\s+["']?([^"'.,!?]+)["']?[\s.!?]*$/i,
+
+    /^i\s+(?:prefer|would\s+prefer)\s+to\s+be\s+called\s+["']?([^"'.,!?]+)["']?[\s.!?]*$/i,
+
+    /^just\s+call\s+me\s+["']?([^"'.,!?]+)["']?[\s.!?]*$/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+
+    if (match && match[1]) {
+      const nickname = match[1]
+        .trim()
+        .replace(/\s+/g, " ");
+
+      if (
+        nickname.length >= 1 &&
+        nickname.length <= 30
+      ) {
+        return nickname;
+      }
+    }
+  }
+
+  return null;
+}
+
 /*
 |--------------------------------------------------------------------------
 | Normal Chat
@@ -18,34 +71,91 @@ async function chat(req, res) {
   try {
     const { messages } = req.body;
 
-    if (!Array.isArray(messages) || messages.length === 0) {
+    if (
+      !Array.isArray(messages) ||
+      messages.length === 0
+    ) {
       return res.status(400).json({
         error: "Messages are required.",
       });
     }
 
-    const userId = req.user?.userId || null;
-    const guestId = userId ? null : req.guestId;
+    const userId =
+      req.user?.userId || null;
 
-    const usage = await getUsage(userId, guestId);
+    const guestId =
+      userId ? null : req.guestId;
+
+    const usage =
+      await getUsage(
+        userId,
+        guestId
+      );
 
     if (usage.remaining <= 0) {
       return res.status(429).json({
-        error: "Daily token limit reached.",
+        error:
+          "Daily token limit reached.",
         usage,
       });
     }
 
-    const reply = await generateResponse(messages);
+    /*
+    |--------------------------------------------------------------------------
+    | Update nickname if requested
+    |--------------------------------------------------------------------------
+    */
+
+    if (userId) {
+      const lastMessage =
+        messages[messages.length - 1];
+
+      if (
+        lastMessage?.role === "user"
+      ) {
+        const nickname =
+          detectNickname(
+            lastMessage.content
+          );
+
+        if (nickname) {
+          await updateNickname(
+            userId,
+            nickname
+          );
+        }
+      }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Get current user
+    |--------------------------------------------------------------------------
+    */
+
+    const user =
+      userId
+        ? await getUserById(userId)
+        : null;
+
+    const reply =
+      await generateResponse(
+        messages,
+        user
+      );
 
     res.json({
       reply,
     });
   } catch (error) {
-    console.error("Chat error:", error);
+    console.error(
+      "Chat error:",
+      error
+    );
 
     res.status(500).json({
-      error: "Failed to generate AI response.",
+      error:
+        "Failed to generate AI response.",
     });
   }
 }
@@ -60,7 +170,10 @@ async function streamChat(req, res) {
   try {
     const { messages } = req.body;
 
-    if (!Array.isArray(messages) || messages.length === 0) {
+    if (
+      !Array.isArray(messages) ||
+      messages.length === 0
+    ) {
       return res.status(400).json({
         error: "Messages are required.",
       });
@@ -72,29 +185,88 @@ async function streamChat(req, res) {
     |--------------------------------------------------------------------------
     */
 
-    const userId = req.user?.userId || null;
-    const guestId = userId ? null : req.guestId;
-    console.log("CHAT IDENTITY:", {
-      userId,
-      guestId,
-    });
+    const userId =
+      req.user?.userId || null;
+
+    const guestId =
+      userId ? null : req.guestId;
+
+    console.log(
+      "CHAT IDENTITY:",
+      {
+        userId,
+        guestId,
+      }
+    );
+
     /*
     |--------------------------------------------------------------------------
     | Check daily quota
     |--------------------------------------------------------------------------
     */
 
-    const usage = await getUsage(
-      userId,
-      guestId
-    );
+    const usage =
+      await getUsage(
+        userId,
+        guestId
+      );
 
     if (usage.remaining <= 0) {
       return res.status(429).json({
-        error: "Daily token limit reached.",
+        error:
+          "Daily token limit reached.",
         usage,
       });
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Update nickname if requested
+    |--------------------------------------------------------------------------
+    */
+
+    if (userId) {
+      const lastMessage =
+        messages[messages.length - 1];
+
+      if (
+        lastMessage?.role === "user"
+      ) {
+        const nickname =
+          detectNickname(
+            lastMessage.content
+          );
+
+        if (nickname) {
+          try {
+            await updateNickname(
+              userId,
+              nickname
+            );
+
+            console.log(
+              `Nickname updated for user ${userId}: ${nickname}`
+            );
+          } catch (nicknameError) {
+            console.error(
+              "Failed to update nickname:",
+              nicknameError
+            );
+          }
+        }
+      }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Get current user
+    |--------------------------------------------------------------------------
+    */
+
+    const user =
+      userId
+        ? await getUserById(userId)
+        : null;
 
     /*
     |--------------------------------------------------------------------------
@@ -102,7 +274,11 @@ async function streamChat(req, res) {
     |--------------------------------------------------------------------------
     */
 
-    const stream = await streamResponse(messages);
+    const stream =
+      await streamResponse(
+        messages,
+        user
+      );
 
     res.setHeader(
       "Content-Type",
@@ -119,12 +295,14 @@ async function streamChat(req, res) {
       "keep-alive"
     );
 
-    const reader = stream.getReader();
-    const decoder = new TextDecoder();
+    const reader =
+      stream.getReader();
+
+    const decoder =
+      new TextDecoder();
 
     let buffer = "";
 
-    // Actual Ollama usage
     let promptTokens = 0;
     let completionTokens = 0;
 
@@ -139,16 +317,20 @@ async function streamChat(req, res) {
           break;
         }
 
-        buffer += decoder.decode(value, {
-          stream: true,
-        });
+        buffer +=
+          decoder.decode(value, {
+            stream: true,
+          });
 
-        const lines = buffer.split("\n");
+        const lines =
+          buffer.split("\n");
 
-        // Keep incomplete line
-        buffer = lines.pop() || "";
+        buffer =
+          lines.pop() || "";
 
-        for (const line of lines) {
+        for (
+          const line of lines
+        ) {
           const trimmedLine =
             line.trim();
 
@@ -158,7 +340,9 @@ async function streamChat(req, res) {
 
           try {
             const data =
-              JSON.parse(trimmedLine);
+              JSON.parse(
+                trimmedLine
+              );
 
             /*
             |--------------------------------------------------------------------------
@@ -179,7 +363,7 @@ async function streamChat(req, res) {
 
             /*
             |--------------------------------------------------------------------------
-            | Capture actual token usage
+            | Capture token usage
             |--------------------------------------------------------------------------
             */
 
@@ -208,11 +392,9 @@ async function streamChat(req, res) {
                 promptTokens +
                 completionTokens;
 
-              /*
-              | Record actual usage
-              */
-
-              if (totalTokens > 0) {
+              if (
+                totalTokens > 0
+              ) {
                 try {
                   await recordUsage(
                     totalTokens,
@@ -223,7 +405,9 @@ async function streamChat(req, res) {
                   console.log(
                     `Usage recorded: ${totalTokens} tokens`
                   );
-                } catch (usageError) {
+                } catch (
+                  usageError
+                ) {
                   console.error(
                     "Failed to record usage:",
                     usageError
@@ -275,7 +459,9 @@ async function streamChat(req, res) {
               data.prompt_eval_count;
           }
 
-          if (data.eval_count) {
+          if (
+            data.eval_count
+          ) {
             completionTokens =
               data.eval_count;
           }
@@ -285,7 +471,9 @@ async function streamChat(req, res) {
               promptTokens +
               completionTokens;
 
-            if (totalTokens > 0) {
+            if (
+              totalTokens > 0
+            ) {
               try {
                 await recordUsage(
                   totalTokens,
@@ -296,7 +484,9 @@ async function streamChat(req, res) {
                 console.log(
                   `Usage recorded: ${totalTokens} tokens`
                 );
-              } catch (usageError) {
+              } catch (
+                usageError
+              ) {
                 console.error(
                   "Failed to record usage:",
                   usageError

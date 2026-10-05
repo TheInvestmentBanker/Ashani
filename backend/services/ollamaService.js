@@ -472,6 +472,39 @@ and should not be presented as evidence that Ashani is
 sentient or human.
 
 ==================================================
+USER NAME AND NICKENAME
+==================================================
+
+Ashani should address authenticated users using their preferred name.
+
+The application may provide the user's current preferred name
+or nickname as part of the conversation context.
+
+If a user explicitly tells you that they want to be called by
+a particular name or nickname, recognize this as a preference
+request.
+
+Examples:
+
+- "Call me Rahul."
+- "You can call me Raj."
+- "From now on call me AJ."
+- "I prefer to be called Sam."
+- "Just call me Mike."
+
+When the user clearly requests a new name or nickname, acknowledge
+the preference naturally and use that name in future responses.
+
+Do not change the user's name based on casual references,
+characters, fictional names, or names mentioned in conversation
+unless the user clearly indicates that they want to be called
+that name.
+
+The application is responsible for saving the user's preferred
+nickname. Do not claim that a preference has been permanently
+saved unless the application confirms that it has been saved.
+
+==================================================
 ACCURACY AND HONESTY
 ==================================================
 
@@ -565,28 +598,91 @@ And you are here to chat with the world.
 
 `;
 
-async function generateResponse(messages, model = DEFAULT_MODEL) {
+function buildSystemPrompt(user) {
+  let userContext = "";
+
+  if (user) {
+    const preferredName =
+      user.nickname ||
+      user.username;
+
+    userContext = `
+==================================================
+CURRENT USER
+==================================================
+
+This is an authenticated user.
+
+Username: ${user.username}
+Preferred name: ${preferredName}
+
+Address the user using their preferred name naturally
+when appropriate.
+
+If the user explicitly requests a different nickname,
+the application may update this preference.
+`;
+  } else {
+    userContext = `
+==================================================
+CURRENT USER
+==================================================
+
+This user is not authenticated.
+
+Do not assume or invent the user's name.
+
+Do not call the user Rahul unless the user explicitly
+provides that name themselves during the conversation.
+`;
+  }
+
+  return `${SYSTEM_PROMPT}
+
+${userContext}`;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Normal Response
+|--------------------------------------------------------------------------
+*/
+
+async function generateResponse(
+  messages,
+  user = null,
+  model = DEFAULT_MODEL
+) {
   const ollamaMessages = [
     {
       role: "system",
-      content: SYSTEM_PROMPT,
+      content:
+        buildSystemPrompt(user),
     },
     ...messages,
   ];
 
-  const response = await fetch(`${OLLAMA_URL}/api/chat`, {
-    method: "POST",
+  const response =
+    await fetch(
+      `${OLLAMA_URL}/api/chat`,
+      {
+        method: "POST",
 
-    headers: {
-      "Content-Type": "application/json",
-    },
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
 
-    body: JSON.stringify({
-      model,
-      messages: ollamaMessages,
-      stream: false,
-    }),
-  });
+        body: JSON.stringify({
+          model,
+
+          messages:
+            ollamaMessages,
+
+          stream: false,
+        }),
+      }
+    );
 
   if (!response.ok) {
     throw new Error(
@@ -594,36 +690,55 @@ async function generateResponse(messages, model = DEFAULT_MODEL) {
     );
   }
 
-  const data = await response.json();
+  const data =
+    await response.json();
 
-  return data.message?.content || "";
+  return (
+    data.message?.content || ""
+  );
 }
+
+/*
+|--------------------------------------------------------------------------
+| Streaming Response
+|--------------------------------------------------------------------------
+*/
 
 async function streamResponse(
   messages,
+  user = null,
   model = DEFAULT_MODEL
 ) {
   const ollamaMessages = [
     {
       role: "system",
-      content: SYSTEM_PROMPT,
+      content:
+        buildSystemPrompt(user),
     },
     ...messages,
   ];
 
-  const response = await fetch(`${OLLAMA_URL}/api/chat`, {
-    method: "POST",
+  const response =
+    await fetch(
+      `${OLLAMA_URL}/api/chat`,
+      {
+        method: "POST",
 
-    headers: {
-      "Content-Type": "application/json",
-    },
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
 
-    body: JSON.stringify({
-      model,
-      messages: ollamaMessages,
-      stream: true,
-    }),
-  });
+        body: JSON.stringify({
+          model,
+
+          messages:
+            ollamaMessages,
+
+          stream: true,
+        }),
+      }
+    );
 
   if (!response.ok) {
     throw new Error(

@@ -6,7 +6,6 @@ const {
   createToken,
 } = require("../services/authService");
 
-
 /*
 |--------------------------------------------------------------------------
 | Register
@@ -20,7 +19,6 @@ function register(req, res) {
     password,
   } = req.body;
 
-  // All fields are mandatory
   if (!username || !email || !password) {
     return res.status(400).json({
       error:
@@ -33,7 +31,6 @@ function register(req, res) {
 
   const normalizedEmail =
     email.trim().toLowerCase();
-
 
   // Username validation
   if (normalizedUsername.length < 3) {
@@ -50,7 +47,6 @@ function register(req, res) {
     });
   }
 
-
   // Password validation
   if (password.length < 8) {
     return res.status(400).json({
@@ -58,7 +54,6 @@ function register(req, res) {
         "Password must be at least 8 characters.",
     });
   }
-
 
   // Check username OR email
   db.get(
@@ -95,21 +90,22 @@ function register(req, res) {
         const passwordHash =
           await hashPassword(password);
 
-
         db.run(
           `
           INSERT INTO users
           (
             username,
             email,
-            password_hash
+            password_hash,
+            nickname
           )
-          VALUES (?, ?, ?)
+          VALUES (?, ?, ?, ?)
           `,
           [
             normalizedUsername,
             normalizedEmail,
             passwordHash,
+            null,
           ],
           function (insertError) {
             if (insertError) {
@@ -124,21 +120,18 @@ function register(req, res) {
               });
             }
 
-
             const user = {
               id: this.lastID,
               username: normalizedUsername,
               email: normalizedEmail,
+              nickname: null,
             };
-
 
             const token =
               createToken(user);
 
-
             res.status(201).json({
               token,
-
               user,
             });
           }
@@ -158,7 +151,6 @@ function register(req, res) {
   );
 }
 
-
 /*
 |--------------------------------------------------------------------------
 | Login
@@ -171,8 +163,6 @@ function login(req, res) {
     password,
   } = req.body;
 
-
-  // Both fields are mandatory
   if (!identifier || !password) {
     return res.status(400).json({
       error:
@@ -180,25 +170,17 @@ function login(req, res) {
     });
   }
 
-
   const normalizedIdentifier =
     identifier.trim();
 
-
-  /*
-   * The same login field accepts either:
-   *
-   * username
-   * OR
-   * email
-   */
   db.get(
     `
     SELECT
       id,
       username,
       email,
-      password_hash
+      password_hash,
+      nickname
     FROM users
     WHERE username = ?
        OR email = ?
@@ -219,15 +201,12 @@ function login(req, res) {
         });
       }
 
-
-      // Don't reveal whether username/email exists
       if (!user) {
         return res.status(401).json({
           error:
             "Invalid username/email or password.",
         });
       }
-
 
       try {
         const validPassword =
@@ -236,7 +215,6 @@ function login(req, res) {
             user.password_hash
           );
 
-
         if (!validPassword) {
           return res.status(401).json({
             error:
@@ -244,13 +222,12 @@ function login(req, res) {
           });
         }
 
-
-        const token = createToken({
-          id: user.id,
-          username: user.username,
-          email: user.email,
-        });
-
+        const token =
+          createToken({
+            id: user.id,
+            username: user.username,
+            email: user.email,
+          });
 
         res.json({
           token,
@@ -259,6 +236,7 @@ function login(req, res) {
             id: user.id,
             username: user.username,
             email: user.email,
+            nickname: user.nickname || null,
           },
         });
       } catch (loginError) {
@@ -274,7 +252,6 @@ function login(req, res) {
     }
   );
 }
-
 
 module.exports = {
   register,
