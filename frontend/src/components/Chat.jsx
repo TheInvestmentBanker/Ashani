@@ -89,7 +89,7 @@ function Chat({ messages, onSend, loading }) {
 
               opacity: isDarkMode
                 ? 0.30
-                : 0.50,
+                : 0.40,
 
               pointerEvents: "none",
               userSelect: "none",
