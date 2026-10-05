@@ -16,6 +16,11 @@ import {
 
 import { getUser } from "../services/auth";
 
+import {
+  getGuestGreeting,
+  getUserGreeting,
+} from "../utils/greeting";
+
 function createGuestConversation() {
   return {
     id: `guest-${crypto.randomUUID()}`,
@@ -42,6 +47,18 @@ function ChatPage() {
     useState(true);
 
   const user = getUser();
+
+  const [greeting] = useState(() => {
+  const currentUser = getUser();
+
+  if (currentUser) {
+    return getUserGreeting(
+      currentUser
+    );
+  }
+
+  return getGuestGreeting();
+});
 
   /*
   |--------------------------------------------------------------------------
@@ -683,6 +700,7 @@ function ChatPage() {
           messages={messages}
           onSend={handleSend}
           loading={loading}
+          greeting={greeting}
         />
       </Box>
     </Box>

@@ -11,7 +11,12 @@ import ChatInput from "./ChatInput";
 import galaxyDark from "../assets/ashani-galaxy-dark.png";
 import galaxyLight from "../assets/ashani-galaxy-light.png";
 
-function Chat({ messages, onSend, loading }) {
+function Chat({
+  messages,
+  onSend,
+  loading,
+  greeting,
+}) {
   const messagesEndRef = useRef(null);
   const theme = useTheme();
 
@@ -202,7 +207,7 @@ function Chat({ messages, onSend, loading }) {
                   : "0 2px 20px rgba(255,255,255,0.8)",
               }}
             >
-              Hi Rahul, what's on your mind?
+              {greeting}
             </Typography>
 
             {/* =================================================
