@@ -13,6 +13,13 @@ const {
   updateNickname,
 } = require("../services/userService");
 
+const {
+  createConversation,
+  getConversation,
+  saveMessage,
+  getConversationCount,
+} = require("../services/conversationService");
+
 /*
 |--------------------------------------------------------------------------
 | Nickname detection
@@ -80,11 +87,23 @@ async function chat(req, res) {
       });
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Identify user
+    |--------------------------------------------------------------------------
+    */
+
     const userId =
       req.user?.userId || null;
 
     const guestId =
       userId ? null : req.guestId;
+
+    /*
+    |--------------------------------------------------------------------------
+    | Check daily quota
+    |--------------------------------------------------------------------------
+    */
 
     const usage =
       await getUsage(
@@ -123,6 +142,10 @@ async function chat(req, res) {
             userId,
             nickname
           );
+
+          console.log(
+            `Nickname updated for user ${userId}: ${nickname}`
+          );
         }
       }
     }
@@ -138,15 +161,38 @@ async function chat(req, res) {
         ? await getUserById(userId)
         : null;
 
+    /*
+    |--------------------------------------------------------------------------
+    | Get conversation count
+    |--------------------------------------------------------------------------
+    |
+    | Guests don't have persistent conversations,
+    | so their count is 0.
+    |
+    */
+
+    const conversationCount =
+      userId
+        ? await getConversationCount(userId)
+        : 0;
+
+    /*
+    |--------------------------------------------------------------------------
+    | Generate response
+    |--------------------------------------------------------------------------
+    */
+
     const reply =
       await generateResponse(
         messages,
-        user
+        user,
+        conversationCount
       );
 
     res.json({
       reply,
     });
+
   } catch (error) {
     console.error(
       "Chat error:",
@@ -247,6 +293,7 @@ async function streamChat(req, res) {
             console.log(
               `Nickname updated for user ${userId}: ${nickname}`
             );
+
           } catch (nicknameError) {
             console.error(
               "Failed to update nickname:",
@@ -270,6 +317,17 @@ async function streamChat(req, res) {
 
     /*
     |--------------------------------------------------------------------------
+    | Get conversation count
+    |--------------------------------------------------------------------------
+    */
+
+    const conversationCount =
+      userId
+        ? await getConversationCount(userId)
+        : 0;
+
+    /*
+    |--------------------------------------------------------------------------
     | Start Ollama stream
     |--------------------------------------------------------------------------
     */
@@ -277,7 +335,8 @@ async function streamChat(req, res) {
     const stream =
       await streamResponse(
         messages,
-        user
+        user,
+        conversationCount
       );
 
     res.setHeader(
@@ -318,9 +377,12 @@ async function streamChat(req, res) {
         }
 
         buffer +=
-          decoder.decode(value, {
-            stream: true,
-          });
+          decoder.decode(
+            value,
+            {
+              stream: true,
+            }
+          );
 
         const lines =
           buffer.split("\n");
@@ -405,6 +467,7 @@ async function streamChat(req, res) {
                   console.log(
                     `Usage recorded: ${totalTokens} tokens`
                   );
+
                 } catch (
                   usageError
                 ) {
@@ -419,6 +482,7 @@ async function streamChat(req, res) {
                 "data: [DONE]\n\n"
               );
             }
+
           } catch (error) {
             console.error(
               "Failed to parse Ollama stream line:",
@@ -484,6 +548,7 @@ async function streamChat(req, res) {
                 console.log(
                   `Usage recorded: ${totalTokens} tokens`
                 );
+
               } catch (
                 usageError
               ) {
@@ -498,6 +563,7 @@ async function streamChat(req, res) {
               "data: [DONE]\n\n"
             );
           }
+
         } catch (error) {
           console.error(
             "Failed to parse final Ollama chunk:",
@@ -505,10 +571,12 @@ async function streamChat(req, res) {
           );
         }
       }
+
     } finally {
       reader.releaseLock();
       res.end();
     }
+
   } catch (error) {
     console.error(
       "Streaming error:",
@@ -532,6 +600,12 @@ async function streamChat(req, res) {
     res.end();
   }
 }
+
+/*
+|--------------------------------------------------------------------------
+| Exports
+|--------------------------------------------------------------------------
+*/
 
 module.exports = {
   chat,

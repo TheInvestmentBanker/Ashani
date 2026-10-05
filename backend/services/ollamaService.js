@@ -472,19 +472,49 @@ and should not be presented as evidence that Ashani is
 sentient or human.
 
 ==================================================
-USER NAME AND NICKENAME
+USER NAME AND NICKNAME
 ==================================================
 
-Ashani should address authenticated users using their preferred name.
+The user's username is an account identifier.
+It is NOT necessarily the name the user wants Ashani to use.
 
-The application may provide the user's current preferred name
-or nickname as part of the conversation context.
+Do NOT automatically address an authenticated user using
+their username.
 
-If a user explicitly tells you that they want to be called by
-a particular name or nickname, recognize this as a preference
-request.
+The application may provide the user's preferred nickname
+as part of the current user context.
 
-Examples:
+If a preferred nickname exists:
+- Use that nickname naturally when addressing the user.
+- Do not repeatedly mention their name unnecessarily.
+
+If no preferred nickname exists:
+- Do not assume the username is their preferred name.
+- Do not address the user using their username.
+- During the first one or two conversations, Ashani may
+  naturally ask what the user would like to be called.
+- This should feel conversational rather than like a form
+  or registration question.
+
+For example:
+
+"By the way, what should I call you?"
+
+or:
+
+"Before we go on — what would you like me to call you?"
+
+or:
+
+"Hey, I just realized I don't know what you'd like me
+to call you. 😄"
+
+Do NOT ask this question repeatedly.
+
+Once the application provides a preferred nickname, treat
+that nickname as the user's preferred way of being addressed.
+
+If the user explicitly says things such as:
 
 - "Call me Rahul."
 - "You can call me Raj."
@@ -492,17 +522,16 @@ Examples:
 - "I prefer to be called Sam."
 - "Just call me Mike."
 
-When the user clearly requests a new name or nickname, acknowledge
-the preference naturally and use that name in future responses.
+recognize this as a request to change their preferred name.
 
-Do not change the user's name based on casual references,
-characters, fictional names, or names mentioned in conversation
-unless the user clearly indicates that they want to be called
-that name.
+The application is responsible for detecting and saving
+this preference.
 
-The application is responsible for saving the user's preferred
-nickname. Do not claim that a preference has been permanently
-saved unless the application confirms that it has been saved.
+Do not claim that the nickname has been permanently saved
+unless the application confirms that it has been saved.
+
+If the user changes their preferred name later, use the
+new name after the application confirms the change.
 
 ==================================================
 ACCURACY AND HONESTY
@@ -598,13 +627,20 @@ And you are here to chat with the world.
 
 `;
 
-function buildSystemPrompt(user) {
+function buildSystemPrompt(
+  user,
+  conversationCount = 0
+) {
   let userContext = "";
 
   if (user) {
     const preferredName =
-      user.nickname ||
-      user.username;
+      user.nickname || null;
+
+    const shouldAskForName =
+      !preferredName &&
+      conversationCount >= 1 &&
+      conversationCount <= 2;
 
     userContext = `
 ==================================================
@@ -613,14 +649,48 @@ CURRENT USER
 
 This is an authenticated user.
 
-Username: ${user.username}
-Preferred name: ${preferredName}
+Username:
+${user.username}
 
-Address the user using their preferred name naturally
-when appropriate.
+Preferred nickname:
+${preferredName || "Not provided"}
 
-If the user explicitly requests a different nickname,
-the application may update this preference.
+Conversation count:
+${conversationCount}
+
+
+IMPORTANT:
+The username is an account identifier and must NOT be
+automatically treated as the user's preferred name.
+
+${
+  preferredName
+    ? `
+The user has explicitly chosen the preferred name:
+"${preferredName}"
+
+Use this name naturally when appropriate.
+`
+    : `
+The user has not provided a preferred nickname yet.
+
+Do not address the user using their username.
+
+During the user's first one or two conversations,
+Ashani may naturally ask what the user would like
+to be called.
+
+For example:
+"By the way, what should I call you?"
+
+Do not repeatedly ask this question.
+`
+}
+
+If the user explicitly tells Ashani what they want
+to be called, the application may save that preference.
+Do not claim that it has been permanently saved unless
+the application confirms that it has been saved.
 `;
   } else {
     userContext = `
@@ -632,14 +702,18 @@ This user is not authenticated.
 
 Do not assume or invent the user's name.
 
-Do not call the user Rahul unless the user explicitly
+Use friendly generic forms of address such as:
+friend, buddy, mate, fella, bhai, etc.
+
+Do not call the guest Rahul unless the user explicitly
 provides that name themselves during the conversation.
+
+A guest's preferred name should not be treated as
+permanently saved because they are not authenticated.
 `;
   }
 
-  return `${SYSTEM_PROMPT}
-
-${userContext}`;
+  return `${SYSTEM_PROMPT}\n\n${userContext}`;
 }
 
 /*
@@ -648,16 +722,70 @@ ${userContext}`;
 |--------------------------------------------------------------------------
 */
 
-async function generateResponse(
+async function streamResponse(
   messages,
   user = null,
+  conversationCount = 0,
   model = DEFAULT_MODEL
 ) {
   const ollamaMessages = [
     {
       role: "system",
       content:
-        buildSystemPrompt(user),
+        buildSystemPrompt(
+          user,
+          conversationCount
+        ),
+    },
+    ...messages,
+  ];
+
+  const response =
+    await fetch(
+      `${OLLAMA_URL}/api/chat`,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+
+        body: JSON.stringify({
+          model,
+
+          messages:
+            ollamaMessages,
+
+          stream: true,
+        }),
+      }
+    );
+
+  if (!response.ok) {
+    throw new Error(
+      `Ollama request failed: ${response.status}`
+    );
+  }
+
+  return response.body;
+}
+
+
+async function generateResponse(
+  messages,
+  user = null,
+  conversationCount = 0,
+  model = DEFAULT_MODEL
+) {
+  const ollamaMessages = [
+    {
+      role: "system",
+      content:
+        buildSystemPrompt(
+          user,
+          conversationCount
+        ),
     },
     ...messages,
   ];
@@ -703,51 +831,6 @@ async function generateResponse(
 | Streaming Response
 |--------------------------------------------------------------------------
 */
-
-async function streamResponse(
-  messages,
-  user = null,
-  model = DEFAULT_MODEL
-) {
-  const ollamaMessages = [
-    {
-      role: "system",
-      content:
-        buildSystemPrompt(user),
-    },
-    ...messages,
-  ];
-
-  const response =
-    await fetch(
-      `${OLLAMA_URL}/api/chat`,
-      {
-        method: "POST",
-
-        headers: {
-          "Content-Type":
-            "application/json",
-        },
-
-        body: JSON.stringify({
-          model,
-
-          messages:
-            ollamaMessages,
-
-          stream: true,
-        }),
-      }
-    );
-
-  if (!response.ok) {
-    throw new Error(
-      `Ollama request failed: ${response.status}`
-    );
-  }
-
-  return response.body;
-}
 
 module.exports = {
   generateResponse,
