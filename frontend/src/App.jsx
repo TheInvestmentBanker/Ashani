@@ -3,14 +3,36 @@ import {
   Routes,
   Route,
 } from "react-router-dom";
+import { useCallback, useState } from "react";
 
 import ChatPage from "./pages/ChatPage";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import AshaniSplash from "./components/AshaniSplash";
 
 import {
   ThemeModeProvider,
 } from "./theme/ThemeModeContext";
+
+function HomeWithSplash() {
+  const [showSplash, setShowSplash] = useState(true);
+
+  const handleSplashComplete = useCallback(() => {
+    setShowSplash(false);
+  }, []);
+
+  return (
+    <>
+      {showSplash && (
+        <AshaniSplash
+          onComplete={handleSplashComplete}
+        />
+      )}
+
+      <ChatPage />
+    </>
+  );
+}
 
 function App() {
   return (
@@ -19,9 +41,9 @@ function App() {
         <Routes>
 
           <Route
-            path="/"
-            element={<ChatPage />}
-          />
+  path="/"
+  element={<HomeWithSplash />}
+/>
 
           <Route
             path="/login"

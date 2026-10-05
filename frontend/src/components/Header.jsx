@@ -130,7 +130,7 @@ borderColor: "divider",
             letterSpacing: "-0.02em",
           }}
         >
-          Ashani
+          ASHANI
         </Typography>
 
         <Box sx={{ flexGrow: 1 }} />
