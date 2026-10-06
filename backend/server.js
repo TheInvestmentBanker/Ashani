@@ -7,6 +7,8 @@ const conversationRoutes =
 const {
   initializeDatabase,
 } = require("./config/database");
+const searchRoutes =
+  require("./routes/searchRoutes");
 
 const express = require("express");
 const cors = require("cors");
@@ -53,6 +55,10 @@ app.use("/api/usage", usageRoutes);
 app.use(
   "/api/conversations",
   conversationRoutes
+);
+app.use(
+  "/api/search",
+  searchRoutes
 );
 
 app.listen(PORT, () => {

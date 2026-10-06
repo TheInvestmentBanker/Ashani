@@ -1,6 +1,7 @@
 const {
   generateResponse,
   streamResponse,
+  buildWebSearchContext,
 } = require("../services/ollamaService");
 
 const {
@@ -14,11 +15,17 @@ const {
 } = require("../services/userService");
 
 const {
-  createConversation,
-  getConversation,
-  saveMessage,
   getConversationCount,
 } = require("../services/conversationService");
+
+const {
+  performWebSearch,
+} = require("../services/webSearchService");
+
+const {
+  shouldSearchWeb,
+} = require("../services/searchRouter");
+
 
 /*
 |--------------------------------------------------------------------------
@@ -68,6 +75,168 @@ function detectNickname(message) {
   return null;
 }
 
+
+/*
+|--------------------------------------------------------------------------
+| Get last user message
+|--------------------------------------------------------------------------
+*/
+
+function getLastUserMessage(messages) {
+  for (
+    let i = messages.length - 1;
+    i >= 0;
+    i--
+  ) {
+    if (
+      messages[i]?.role === "user" &&
+      typeof messages[i]?.content === "string"
+    ) {
+      return messages[i];
+    }
+  }
+
+  return null;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Prepare Web Search Context
+|--------------------------------------------------------------------------
+*/
+
+async function prepareWebSearch(messages) {
+  const lastUserMessage =
+    getLastUserMessage(messages);
+
+  if (!lastUserMessage) {
+    return {
+      messages,
+      searched: false,
+      searchData: null,
+    };
+  }
+
+  const query =
+    lastUserMessage.content.trim();
+
+  const shouldSearch =
+    shouldSearchWeb(query);
+
+  if (!shouldSearch) {
+    console.log(
+      "WEB SEARCH: Not required"
+    );
+
+    return {
+      messages,
+      searched: false,
+      searchData: null,
+    };
+  }
+
+  console.log(
+    "WEB SEARCH: Required"
+  );
+
+  console.log(
+    "WEB SEARCH QUERY:",
+    query
+  );
+
+  try {
+    const searchData =
+      await performWebSearch(query, {
+        categories: "general",
+        language: "en",
+        safesearch: 0,
+      });
+
+    console.log(
+      `WEB SEARCH: ${searchData.resultCount} results`
+    );
+
+    if (
+      !searchData.results ||
+      searchData.results.length === 0
+    ) {
+      console.log(
+        "WEB SEARCH: No results found"
+      );
+
+      return {
+        messages,
+        searched: true,
+        searchData,
+      };
+    }
+
+    /*
+    ----------------------------------------------------------------------
+    Add web results to the latest user message.
+
+    This keeps the search context attached to the
+    current request rather than permanently adding
+    search results to the conversation history.
+    ----------------------------------------------------------------------
+    */
+
+    const webContext =
+      buildWebSearchContext(
+        searchData
+      );
+
+    const enrichedMessages =
+      messages.map(
+        (message, index) => {
+          if (
+            index ===
+              messages.length - 1 &&
+            message.role === "user"
+          ) {
+            return {
+              ...message,
+              content:
+                `${message.content}\n\n${webContext}`,
+            };
+          }
+
+          return message;
+        }
+      );
+
+    return {
+      messages: enrichedMessages,
+      searched: true,
+      searchData,
+    };
+
+  } catch (error) {
+    /*
+    ----------------------------------------------------------------------
+    Search failure should NOT destroy normal chat.
+
+    If SearXNG fails, Ashani continues without web
+    search instead of returning a completely broken
+    chat response.
+    ----------------------------------------------------------------------
+    */
+
+    console.error(
+      "WEB SEARCH ERROR:",
+      error
+    );
+
+    return {
+      messages,
+      searched: false,
+      searchData: null,
+    };
+  }
+}
+
+
 /*
 |--------------------------------------------------------------------------
 | Normal Chat
@@ -76,16 +245,19 @@ function detectNickname(message) {
 
 async function chat(req, res) {
   try {
-    const { messages } = req.body;
+    const { messages } =
+      req.body;
 
     if (
       !Array.isArray(messages) ||
       messages.length === 0
     ) {
       return res.status(400).json({
-        error: "Messages are required.",
+        error:
+          "Messages are required.",
       });
     }
+
 
     /*
     |--------------------------------------------------------------------------
@@ -98,6 +270,7 @@ async function chat(req, res) {
 
     const guestId =
       userId ? null : req.guestId;
+
 
     /*
     |--------------------------------------------------------------------------
@@ -119,6 +292,7 @@ async function chat(req, res) {
       });
     }
 
+
     /*
     |--------------------------------------------------------------------------
     | Update nickname if requested
@@ -127,7 +301,9 @@ async function chat(req, res) {
 
     if (userId) {
       const lastMessage =
-        messages[messages.length - 1];
+        messages[
+          messages.length - 1
+        ];
 
       if (
         lastMessage?.role === "user"
@@ -150,6 +326,7 @@ async function chat(req, res) {
       }
     }
 
+
     /*
     |--------------------------------------------------------------------------
     | Get current user
@@ -161,20 +338,32 @@ async function chat(req, res) {
         ? await getUserById(userId)
         : null;
 
+
     /*
     |--------------------------------------------------------------------------
     | Get conversation count
     |--------------------------------------------------------------------------
-    |
-    | Guests don't have persistent conversations,
-    | so their count is 0.
-    |
     */
 
     const conversationCount =
       userId
-        ? await getConversationCount(userId)
+        ? await getConversationCount(
+            userId
+          )
         : 0;
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Web Search
+    |--------------------------------------------------------------------------
+    */
+
+    const searchResult =
+      await prepareWebSearch(
+        messages
+      );
+
 
     /*
     |--------------------------------------------------------------------------
@@ -184,13 +373,22 @@ async function chat(req, res) {
 
     const reply =
       await generateResponse(
-        messages,
+        searchResult.messages,
         user,
         conversationCount
       );
 
+
     res.json({
       reply,
+
+      /*
+      Useful for the frontend later.
+      We can use this to display a
+      "Web Search" indicator.
+      */
+      searched:
+        searchResult.searched,
     });
 
   } catch (error) {
@@ -206,6 +404,7 @@ async function chat(req, res) {
   }
 }
 
+
 /*
 |--------------------------------------------------------------------------
 | Streaming Chat
@@ -214,16 +413,19 @@ async function chat(req, res) {
 
 async function streamChat(req, res) {
   try {
-    const { messages } = req.body;
+    const { messages } =
+      req.body;
 
     if (
       !Array.isArray(messages) ||
       messages.length === 0
     ) {
       return res.status(400).json({
-        error: "Messages are required.",
+        error:
+          "Messages are required.",
       });
     }
+
 
     /*
     |--------------------------------------------------------------------------
@@ -245,6 +447,7 @@ async function streamChat(req, res) {
       }
     );
 
+
     /*
     |--------------------------------------------------------------------------
     | Check daily quota
@@ -265,6 +468,7 @@ async function streamChat(req, res) {
       });
     }
 
+
     /*
     |--------------------------------------------------------------------------
     | Update nickname if requested
@@ -273,7 +477,9 @@ async function streamChat(req, res) {
 
     if (userId) {
       const lastMessage =
-        messages[messages.length - 1];
+        messages[
+          messages.length - 1
+        ];
 
       if (
         lastMessage?.role === "user"
@@ -294,7 +500,9 @@ async function streamChat(req, res) {
               `Nickname updated for user ${userId}: ${nickname}`
             );
 
-          } catch (nicknameError) {
+          } catch (
+            nicknameError
+          ) {
             console.error(
               "Failed to update nickname:",
               nicknameError
@@ -303,6 +511,7 @@ async function streamChat(req, res) {
         }
       }
     }
+
 
     /*
     |--------------------------------------------------------------------------
@@ -315,6 +524,7 @@ async function streamChat(req, res) {
         ? await getUserById(userId)
         : null;
 
+
     /*
     |--------------------------------------------------------------------------
     | Get conversation count
@@ -323,8 +533,23 @@ async function streamChat(req, res) {
 
     const conversationCount =
       userId
-        ? await getConversationCount(userId)
+        ? await getConversationCount(
+            userId
+          )
         : 0;
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Web Search
+    |--------------------------------------------------------------------------
+    */
+
+    const searchResult =
+      await prepareWebSearch(
+        messages
+      );
+
 
     /*
     |--------------------------------------------------------------------------
@@ -334,10 +559,17 @@ async function streamChat(req, res) {
 
     const stream =
       await streamResponse(
-        messages,
+        searchResult.messages,
         user,
         conversationCount
       );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | SSE headers
+    |--------------------------------------------------------------------------
+    */
 
     res.setHeader(
       "Content-Type",
@@ -354,6 +586,28 @@ async function streamChat(req, res) {
       "keep-alive"
     );
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | Tell frontend whether web search was used
+    |--------------------------------------------------------------------------
+    */
+
+    res.write(
+      `data: ${JSON.stringify({
+        type: "meta",
+        searched:
+          searchResult.searched,
+      })}\n\n`
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Read Ollama stream
+    |--------------------------------------------------------------------------
+    */
+
     const reader =
       stream.getReader();
 
@@ -363,7 +617,9 @@ async function streamChat(req, res) {
     let buffer = "";
 
     let promptTokens = 0;
+
     let completionTokens = 0;
+
 
     try {
       while (true) {
@@ -376,6 +632,7 @@ async function streamChat(req, res) {
           break;
         }
 
+
         buffer +=
           decoder.decode(
             value,
@@ -384,11 +641,13 @@ async function streamChat(req, res) {
             }
           );
 
+
         const lines =
           buffer.split("\n");
 
         buffer =
           lines.pop() || "";
+
 
         for (
           const line of lines
@@ -400,11 +659,13 @@ async function streamChat(req, res) {
             continue;
           }
 
+
           try {
             const data =
               JSON.parse(
                 trimmedLine
               );
+
 
             /*
             |--------------------------------------------------------------------------
@@ -423,6 +684,7 @@ async function streamChat(req, res) {
               );
             }
 
+
             /*
             |--------------------------------------------------------------------------
             | Capture token usage
@@ -436,12 +698,14 @@ async function streamChat(req, res) {
                 data.prompt_eval_count;
             }
 
+
             if (
               data.eval_count
             ) {
               completionTokens =
                 data.eval_count;
             }
+
 
             /*
             |--------------------------------------------------------------------------
@@ -453,6 +717,7 @@ async function streamChat(req, res) {
               const totalTokens =
                 promptTokens +
                 completionTokens;
+
 
               if (
                 totalTokens > 0
@@ -478,6 +743,7 @@ async function streamChat(req, res) {
                 }
               }
 
+
               res.write(
                 "data: [DONE]\n\n"
               );
@@ -492,6 +758,7 @@ async function streamChat(req, res) {
         }
       }
 
+
       /*
       |--------------------------------------------------------------------------
       | Process final buffered line
@@ -505,6 +772,7 @@ async function streamChat(req, res) {
               buffer.trim()
             );
 
+
           if (
             data.message?.content
           ) {
@@ -516,12 +784,14 @@ async function streamChat(req, res) {
             );
           }
 
+
           if (
             data.prompt_eval_count
           ) {
             promptTokens =
               data.prompt_eval_count;
           }
+
 
           if (
             data.eval_count
@@ -530,10 +800,12 @@ async function streamChat(req, res) {
               data.eval_count;
           }
 
+
           if (data.done) {
             const totalTokens =
               promptTokens +
               completionTokens;
+
 
             if (
               totalTokens > 0
@@ -559,6 +831,7 @@ async function streamChat(req, res) {
               }
             }
 
+
             res.write(
               "data: [DONE]\n\n"
             );
@@ -583,12 +856,14 @@ async function streamChat(req, res) {
       error
     );
 
+
     if (!res.headersSent) {
       return res.status(500).json({
         error:
           "Failed to stream AI response.",
       });
     }
+
 
     res.write(
       `data: ${JSON.stringify({
@@ -597,9 +872,11 @@ async function streamChat(req, res) {
       })}\n\n`
     );
 
+
     res.end();
   }
 }
+
 
 /*
 |--------------------------------------------------------------------------

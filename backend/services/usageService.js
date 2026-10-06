@@ -1,7 +1,7 @@
 const { db } = require("../config/database");
 
-const GUEST_DAILY_LIMIT = 10_000;
-const USER_DAILY_LIMIT = 1_000_000;
+const GUEST_DAILY_LIMIT = 500_000;
+const USER_DAILY_LIMIT = 50_000_000;
 
 /*
 |--------------------------------------------------------------------------
