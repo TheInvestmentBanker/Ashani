@@ -117,7 +117,17 @@ function ChatPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { conversationId } = useParams();
+  const { conversationId: rawConversationId } =
+  useParams();
+
+const conversationId =
+  rawConversationId
+    ? (
+        rawConversationId.startsWith("guest-")
+          ? rawConversationId
+          : Number(rawConversationId)
+      )
+    : null;
 
 
   /*
@@ -1003,11 +1013,11 @@ return;
   */
 
   const activeConversation =
-    conversations.find(
-      (conversation) =>
-        conversation.id ===
-        activeConversationId
-    );
+  conversations.find(
+    (conversation) =>
+      String(conversation.id) ===
+      String(activeConversationId)
+  );
 
 
   const messages =

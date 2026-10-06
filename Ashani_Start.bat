@@ -19,7 +19,7 @@ REM ==========================================
 REM 1. CLOUDFLARE TUNNEL
 REM ==========================================
 
-echo [1/3] Checking Cloudflare Tunnel...
+echo [1/4] Checking Cloudflare Tunnel...
 
 sc query cloudflared | findstr /I "RUNNING" >nul
 
@@ -32,11 +32,62 @@ if errorlevel 1 (
 
 echo.
 
+
 REM ==========================================
-REM 2. OLLAMA
+REM 2. SEARXNG / DOCKER
 REM ==========================================
 
-echo [2/3] Checking Ollama...
+echo [2/4] Checking SearXNG...
+
+curl.exe -s http://localhost:8080/search?q=test^&format=json >nul 2>&1
+
+if not errorlevel 1 (
+    echo [OK] SearXNG is already running.
+    goto CHECK_OLLAMA
+)
+
+echo [INFO] SearXNG is not running.
+echo [INFO] Starting Docker Compose...
+
+cd /d "%~dp0search\searxng"
+
+docker compose up -d
+
+if errorlevel 1 goto SEARXNG_FAILED
+
+echo [INFO] Waiting for SearXNG...
+
+set /a SEARXNG_WAIT=0
+
+
+:WAIT_SEARXNG
+
+timeout /t 1 /nobreak >nul
+
+curl.exe -s http://localhost:8080/search?q=test^&format=json >nul 2>&1
+
+if not errorlevel 1 goto SEARXNG_READY
+
+set /a SEARXNG_WAIT+=1
+
+if %SEARXNG_WAIT% GEQ 30 goto SEARXNG_FAILED
+
+goto WAIT_SEARXNG
+
+
+:SEARXNG_READY
+
+echo [OK] SearXNG is running.
+echo.
+
+
+REM ==========================================
+REM 3. OLLAMA
+REM ==========================================
+
+:CHECK_OLLAMA
+
+echo [3/4] Checking Ollama...
 
 curl.exe -s http://localhost:11434/api/tags >nul 2>&1
 
@@ -80,12 +131,12 @@ echo.
 
 
 REM ==========================================
-REM 3. ASHANI BACKEND
+REM 4. ASHANI BACKEND
 REM ==========================================
 
 :START_BACKEND
 
-echo [3/3] Starting Ashani backend...
+echo [4/4] Starting Ashani backend...
 
 netstat -ano | findstr ":5000" >nul
 
@@ -128,6 +179,20 @@ REM ==========================================
 REM ERROR STATES
 REM ==========================================
 
+:SEARXNG_FAILED
+
+echo.
+echo [ERROR] SearXNG failed to start.
+echo.
+echo Check Docker Desktop and run:
+echo.
+echo cd /d "%~dp0search\searxng"
+echo docker compose ps
+echo.
+pause
+exit /b 1
+
+
 :OLLAMA_FAILED
 
 echo.
@@ -167,6 +232,12 @@ echo https://ashani.online
 echo.
 echo API:
 echo https://api.ashani.online
+echo.
+echo SearXNG:
+echo http://localhost:8080
+echo.
+echo Ollama:
+echo http://localhost:11434
 echo.
 echo ==========================================
 echo.
