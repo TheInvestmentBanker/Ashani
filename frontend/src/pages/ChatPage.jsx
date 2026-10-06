@@ -1104,92 +1104,110 @@ return;
 
       };
 
+/*
+|--------------------------------------------------------------------------
+| REGISTERED USER
+|--------------------------------------------------------------------------
+*/
 
-      /*
-      |--------------------------------------------------------------------------
-      | REGISTERED USER
-      |--------------------------------------------------------------------------
-      */
+if (user) {
 
-      if (user) {
+  try {
 
-        try {
+    /*
+    |--------------------------------------------------------------------------
+    | Create conversation in backend
+    |--------------------------------------------------------------------------
+    */
 
-          const conversation =
-            await createConversation();
-
-
-          const newConversation = {
-
-            ...conversation,
-
-            messages: [
-
-              userMessage,
-
-              {
-                role: "assistant",
-                content: "",
-              },
-
-            ],
-
-            persistent: true,
-
-          };
+    const conversation =
+      await createConversation();
 
 
-          /*
-          |--------------------------------------------------------------------------
-          | Navigate FIRST.
-          |
-          | The new ChatPage will take over
-          | and start the AI request.
-          |--------------------------------------------------------------------------
-          */
+    /*
+    |--------------------------------------------------------------------------
+    | Build conversation WITH first user message
+    |--------------------------------------------------------------------------
+    */
 
-          navigate(
-            `/chat/${conversation.id}`,
-            {
-              state: {
+    const currentConversation = {
 
-                initialConversation:
-                  newConversation,
+  ...conversation,
 
-                autoStart:
-                  true,
+  messages: [
+    userMessage,
 
-              },
-            }
-          );
+    {
+      role: "assistant",
+      content: "",
+    },
+  ],
+
+  persistent: true,
+};
 
 
-        } catch (error) {
+    /*
+    |--------------------------------------------------------------------------
+    | Put conversation into React state
+    |--------------------------------------------------------------------------
+    */
 
-          console.error(
-            "Failed to create conversation:",
-            error
-          );
-
-        }
+    setConversations([
+      currentConversation,
+    ]);
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | VERY IMPORTANT
-        |--------------------------------------------------------------------------
-        |
-        | Stop this old HomePage instance.
-        |
-        | The newly-mounted conversation page
-        | owns the AI request now.
-        |--------------------------------------------------------------------------
-        */
+    setActiveConversationId(
+      conversation.id
+    );
 
-        return;
+
+    /*
+    |--------------------------------------------------------------------------
+    | Navigate to the actual conversation
+    |--------------------------------------------------------------------------
+    */
+
+    navigate(
+      `/chat/${conversation.id}`,
+      {
+        state: {
+
+          initialConversation:
+            currentConversation,
+
+          autoStart: true,
+
+        },
       }
+    );
 
 
+    /*
+    |--------------------------------------------------------------------------
+    | STOP HOME PAGE
+    |--------------------------------------------------------------------------
+    |
+    | The new /chat/:id page now owns the AI request.
+    |
+    */
+
+    return;
+
+
+  } catch (error) {
+
+    console.error(
+      "Failed to create conversation:",
+      error
+    );
+
+    return;
+
+  }
+
+}
       /*
       |--------------------------------------------------------------------------
       | GUEST USER
