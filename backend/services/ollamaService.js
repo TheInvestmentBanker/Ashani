@@ -757,6 +757,7 @@ async function streamResponse(
   messages,
   user = null,
   conversationCount = 0,
+  generationOptions = {},
   model = DEFAULT_MODEL
 ) {
   const ollamaMessages = [
@@ -780,10 +781,16 @@ async function streamResponse(
       },
 
       body: JSON.stringify({
-        model,
-        messages: ollamaMessages,
-        stream: true,
-      }),
+  model,
+  messages: ollamaMessages,
+  stream: true,
+
+  ...(generationOptions.think === true
+    ? {
+        think: true,
+      }
+    : {}),
+}),
     }
   );
 
@@ -807,6 +814,7 @@ async function generateResponse(
   messages,
   user = null,
   conversationCount = 0,
+  generationOptions = {},
   model = DEFAULT_MODEL
 ) {
   const ollamaMessages = [
@@ -830,10 +838,16 @@ async function generateResponse(
       },
 
       body: JSON.stringify({
-        model,
-        messages: ollamaMessages,
-        stream: false,
-      }),
+  model,
+  messages: ollamaMessages,
+  stream: false,
+
+  ...(generationOptions.think === true
+    ? {
+        think: true,
+      }
+    : {}),
+}),
     }
   );
 

@@ -1,5 +1,11 @@
-const { db } = require("../config/database");
+const {
+  db,
+} = require("../config/database");
 
+const {
+  readGeneratedImage,
+  imageToDataUrl,
+} = require("./imageStorageService");
 /*
 |--------------------------------------------------------------------------
 | Create conversation
@@ -114,99 +120,187 @@ function addMessage(
   content,
   tokenCount = 0
 ) {
-  return new Promise((resolve, reject) => {
-    /*
-    |--------------------------------------------------------------------------
-    | First verify ownership
-    |--------------------------------------------------------------------------
-    */
+  return new Promise(
+    (resolve, reject) => {
+      db.get(
+        `
+        SELECT id
+        FROM conversations
+        WHERE id = ?
+          AND user_id = ?
+        `,
+        [
+          conversationId,
+          userId,
+        ],
+        (error, conversation) => {
+          if (error) {
+            return reject(error);
+          }
 
-    db.get(
-      `
-      SELECT id
-      FROM conversations
-      WHERE id = ?
-        AND user_id = ?
-      `,
-      [
-        conversationId,
-        userId,
-      ],
-      (error, conversation) => {
-        if (error) {
-          return reject(error);
-        }
-
-        if (!conversation) {
-          return reject(
-            new Error(
-              "Conversation not found."
-            )
-          );
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Insert message
-        |--------------------------------------------------------------------------
-        */
-
-        db.run(
-          `
-          INSERT INTO messages
-          (
-            conversation_id,
-            role,
-            content,
-            token_count
-          )
-          VALUES (?, ?, ?, ?)
-          `,
-          [
-            conversationId,
-            role,
-            content,
-            tokenCount,
-          ],
-          function (insertError) {
-            if (insertError) {
-              return reject(insertError);
-            }
-
-            /*
-            |--------------------------------------------------------------------------
-            | Update conversation timestamp
-            |--------------------------------------------------------------------------
-            */
-
-            db.run(
-              `
-              UPDATE conversations
-              SET updated_at = CURRENT_TIMESTAMP
-              WHERE id = ?
-              `,
-              [conversationId],
-              (updateError) => {
-                if (updateError) {
-                  return reject(
-                    updateError
-                  );
-                }
-
-                resolve({
-                  id: this.lastID,
-                  conversationId,
-                  role,
-                  content,
-                  tokenCount,
-                });
-              }
+          if (!conversation) {
+            return reject(
+              new Error(
+                "Conversation not found."
+              )
             );
           }
-        );
-      }
-    );
-  });
+
+          db.run(
+            `
+            INSERT INTO messages
+            (
+              conversation_id,
+              role,
+              content,
+              token_count
+            )
+            VALUES (?, ?, ?, ?)
+            `,
+            [
+              conversationId,
+              role,
+              content,
+              tokenCount,
+            ],
+            function (
+              insertError
+            ) {
+              if (insertError) {
+                return reject(
+                  insertError
+                );
+              }
+
+              db.run(
+                `
+                UPDATE conversations
+                SET updated_at =
+                  CURRENT_TIMESTAMP
+                WHERE id = ?
+                `,
+                [conversationId],
+                (updateError) => {
+                  if (updateError) {
+                    return reject(
+                      updateError
+                    );
+                  }
+
+                  resolve({
+                    id: this.lastID,
+                    conversationId,
+                    role,
+                    content,
+                    tokenCount,
+                  });
+                }
+              );
+            }
+          );
+        }
+      );
+    }
+  );
+}
+
+function addImageMessage(
+  conversationId,
+  userId,
+  imagePath,
+  imageFilename,
+  imageMimeType
+) {
+  return new Promise(
+    (resolve, reject) => {
+      db.get(
+        `
+        SELECT id
+        FROM conversations
+        WHERE id = ?
+          AND user_id = ?
+        `,
+        [
+          conversationId,
+          userId,
+        ],
+        (error, conversation) => {
+          if (error) {
+            return reject(error);
+          }
+
+          if (!conversation) {
+            return reject(
+              new Error(
+                "Conversation not found."
+              )
+            );
+          }
+
+          db.run(
+            `
+            INSERT INTO messages
+            (
+              conversation_id,
+              role,
+              content,
+              token_count,
+              image_path,
+              image_filename,
+              image_mime_type
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            `,
+            [
+              conversationId,
+              "assistant",
+              "",
+              0,
+              imagePath,
+              imageFilename,
+              imageMimeType,
+            ],
+            function (
+              insertError
+            ) {
+              if (insertError) {
+                return reject(
+                  insertError
+                );
+              }
+
+              db.run(
+                `
+                UPDATE conversations
+                SET updated_at =
+                  CURRENT_TIMESTAMP
+                WHERE id = ?
+                `,
+                [conversationId],
+                (updateError) => {
+                  if (updateError) {
+                    return reject(
+                      updateError
+                    );
+                  }
+
+                  resolve({
+                    id: this.lastID,
+                    conversationId,
+                    role: "assistant",
+                    content: "",
+                    imagePath,
+                    imageFilename,
+                    imageMimeType,
+                  });
+                }
+              );
+            }
+          );
+        }
+      );
+    }
+  );
 }
 
 /*
@@ -219,63 +313,116 @@ function getMessages(
   conversationId,
   userId
 ) {
-  return new Promise((resolve, reject) => {
-    /*
-    |--------------------------------------------------------------------------
-    | Verify ownership first
-    |--------------------------------------------------------------------------
-    */
+  return new Promise(
+    (resolve, reject) => {
+      db.get(
+        `
+        SELECT id
+        FROM conversations
+        WHERE id = ?
+          AND user_id = ?
+        `,
+        [
+          conversationId,
+          userId,
+        ],
+        (error, conversation) => {
+          if (error) {
+            return reject(error);
+          }
 
-    db.get(
-      `
-      SELECT id
-      FROM conversations
-      WHERE id = ?
-        AND user_id = ?
-      `,
-      [
-        conversationId,
-        userId,
-      ],
-      (error, conversation) => {
-        if (error) {
-          return reject(error);
-        }
+          if (!conversation) {
+            return reject(
+              new Error(
+                "Conversation not found."
+              )
+            );
+          }
 
-        if (!conversation) {
-          return reject(
-            new Error(
-              "Conversation not found."
-            )
-          );
-        }
+          db.all(
+            `
+            SELECT
+              id,
+              role,
+              content,
+              token_count,
+              image_path,
+              image_filename,
+              image_mime_type,
+              created_at
+            FROM messages
+            WHERE conversation_id = ?
+            ORDER BY id ASC
+            `,
+            [conversationId],
+            (
+              messageError,
+              rows
+            ) => {
+              if (messageError) {
+                return reject(
+                  messageError
+                );
+              }
 
-        db.all(
-          `
-          SELECT
-            id,
-            role,
-            content,
-            token_count,
-            created_at
-          FROM messages
-          WHERE conversation_id = ?
-          ORDER BY id ASC
-          `,
-          [conversationId],
-          (messageError, rows) => {
-            if (messageError) {
-              return reject(
-                messageError
+              const messages =
+                (rows || []).map(
+                  (message) => {
+                    let image = null;
+
+                    if (
+                      message.image_path
+                    ) {
+                      try {
+                        const buffer =
+                          readGeneratedImage(
+                            message.image_path
+                          );
+
+                        image =
+                          imageToDataUrl(
+                            buffer,
+                            message.image_mime_type ||
+                              "image/png"
+                          );
+                      } catch (
+                        imageError
+                      ) {
+                        console.error(
+                          "Failed to load stored image:",
+                          imageError
+                        );
+                      }
+                    }
+
+                    return {
+                      id:
+                        message.id,
+                      role:
+                        message.role,
+                      content:
+                        message.content,
+                      token_count:
+                        message.token_count,
+                      created_at:
+                        message.created_at,
+                      image,
+                      image_filename:
+                        message.image_filename ||
+                        null,
+                    };
+                  }
+                );
+
+              resolve(
+                messages
               );
             }
-
-            resolve(rows || []);
-          }
-        );
-      }
-    );
-  });
+          );
+        }
+      );
+    }
+  );
 }
 
 /*

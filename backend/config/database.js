@@ -51,20 +51,90 @@ function initializeDatabase() {
     `);
 
     // Messages
-    db.run(`
-      CREATE TABLE IF NOT EXISTS messages (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        conversation_id INTEGER NOT NULL,
-        role TEXT NOT NULL,
-        content TEXT NOT NULL,
-        token_count INTEGER DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+db.run(`
+  CREATE TABLE IF NOT EXISTS messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversation_id INTEGER NOT NULL,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    token_count INTEGER DEFAULT 0,
 
-        FOREIGN KEY (conversation_id)
-        REFERENCES conversations(id)
-        ON DELETE CASCADE
-      )
-    `);
+    image_path TEXT,
+    image_filename TEXT,
+    image_mime_type TEXT,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (conversation_id)
+    REFERENCES conversations(id)
+    ON DELETE CASCADE
+  )
+`);
+
+        // Ensure image columns exist for older databases
+    db.all(
+      `PRAGMA table_info(messages)`,
+      (error, columns) => {
+        if (error) {
+          console.error(
+            "Failed to inspect messages table:",
+            error.message
+          );
+          return;
+        }
+
+        const existingColumns =
+          new Set(
+            (columns || []).map(
+              (column) => column.name
+            )
+          );
+
+        const imageColumns = [
+          [
+            "image_path",
+            "TEXT",
+          ],
+          [
+            "image_filename",
+            "TEXT",
+          ],
+          [
+            "image_mime_type",
+            "TEXT",
+          ],
+        ];
+
+        for (
+          const [columnName, columnType]
+            of imageColumns
+        ) {
+          if (
+            existingColumns.has(
+              columnName
+            )
+          ) {
+            continue;
+          }
+
+          db.run(
+            `
+            ALTER TABLE messages
+            ADD COLUMN ${columnName}
+            ${columnType}
+            `,
+            (alterError) => {
+              if (alterError) {
+                console.error(
+                  `Failed to add ${columnName}:`,
+                  alterError.message
+                );
+              }
+            }
+          );
+        }
+      }
+    );
 
     // Token usage
     db.run(`

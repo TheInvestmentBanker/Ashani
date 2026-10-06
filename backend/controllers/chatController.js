@@ -16,6 +16,7 @@ const {
 
 const {
   getConversationCount,
+  addImageMessage,
 } = require("../services/conversationService");
 
 const {
@@ -25,6 +26,15 @@ const {
 const {
   shouldSearchWeb,
 } = require("../services/searchRouter");
+
+const {
+  generateTextToImage,
+  generateImageToImage,
+} = require("../services/comfyuiService");
+
+const {
+  saveGeneratedImage,
+} = require("../services/imageStorageService");
 
 
 /*
@@ -207,10 +217,10 @@ async function prepareWebSearch(messages) {
       );
 
     return {
-      messages: enrichedMessages,
-      searched: true,
-      searchData,
-    };
+  messages: enrichedMessages,
+  searched: true,
+  searchData,
+};
 
   } catch (error) {
     /*
@@ -245,8 +255,10 @@ async function prepareWebSearch(messages) {
 
 async function chat(req, res) {
   try {
-    const { messages } =
-      req.body;
+    const {
+  messages,
+  generationOptions = {},
+} = req.body;
 
     if (
       !Array.isArray(messages) ||
@@ -354,15 +366,204 @@ async function chat(req, res) {
 
 
     /*
+|--------------------------------------------------------------------------
+| Image Generation
+|--------------------------------------------------------------------------
+*/
+
+if (
+  generationOptions?.mode === "image"
+) {
+  const lastUserMessage =
+    getLastUserMessage(messages);
+
+  const prompt =
+    lastUserMessage?.content?.trim();
+
+  if (!prompt) {
+    return res.status(400).json({
+      error:
+        "Image prompt is required.",
+    });
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | SSE headers
+  |--------------------------------------------------------------------------
+  */
+
+  res.setHeader(
+    "Content-Type",
+    "text/event-stream"
+  );
+
+  res.setHeader(
+    "Cache-Control",
+    "no-cache"
+  );
+
+  res.setHeader(
+    "Connection",
+    "keep-alive"
+  );
+
+  try {
+    let result;
+
+    /*
     |--------------------------------------------------------------------------
-    | Web Search
+    | Image-to-Image
     |--------------------------------------------------------------------------
     */
 
-    const searchResult =
-      await prepareWebSearch(
-        messages
-      );
+    if (
+      generationOptions.image
+    ) {
+      const imageData =
+        generationOptions.image;
+
+      const match =
+        imageData.match(
+          /^data:(.+?);base64,(.+)$/
+        );
+
+      if (!match) {
+        throw new Error(
+          "Invalid input image data."
+        );
+      }
+
+      const mimeType =
+        match[1];
+
+      const base64Data =
+        match[2];
+
+      const imageBuffer =
+        Buffer.from(
+          base64Data,
+          "base64"
+        );
+
+      const extension =
+        mimeType.split("/")[1] ||
+        "png";
+
+      result =
+        await generateImageToImage(
+          prompt,
+          imageBuffer,
+          `ashani_input.${extension}`
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Text-to-Image
+    |--------------------------------------------------------------------------
+    */
+
+    else {
+      result =
+  await generateTextToImage(
+    prompt,
+    generationOptions.resolution ||
+      "SD"
+  );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Send generated image
+    |--------------------------------------------------------------------------
+    */
+
+    const storedImage =
+  saveGeneratedImage(
+    result.buffer,
+    result.mimeType
+  );
+
+const imageBase64 =
+  result.buffer.toString(
+    "base64"
+  );
+
+const imageDataUrl =
+  `data:${result.mimeType};base64,${imageBase64}`;
+
+/*
+|--------------------------------------------------------------------------
+| Persist image for registered users
+|--------------------------------------------------------------------------
+*/
+
+const conversationId =
+  Number(
+    generationOptions?.conversationId
+  );
+
+if (
+  req.user &&
+  Number.isInteger(
+    conversationId
+  )
+) {
+  await addImageMessage(
+    conversationId,
+    req.user.userId,
+    storedImage.relativePath,
+    storedImage.filename,
+    storedImage.mimeType
+  );
+}
+
+res.write(
+  `data: ${JSON.stringify({
+    type: "image",
+    image: imageDataUrl,
+    filename:
+      storedImage.filename,
+    mode: generationOptions.image
+      ? "image-to-image"
+      : "text-to-image",
+  })}\n\n`
+);
+
+    res.write(
+      "data: [DONE]\n\n"
+    );
+
+    return res.end();
+
+  } catch (error) {
+    console.error(
+      "ComfyUI image generation error:",
+      error
+    );
+
+    res.write(
+      `data: ${JSON.stringify({
+        error:
+          "Failed to generate image.",
+      })}\n\n`
+    );
+
+    return res.end();
+  }
+}
+
+/*
+|--------------------------------------------------------------------------
+| Web Search
+|--------------------------------------------------------------------------
+*/
+
+const searchResult =
+  await prepareWebSearch(
+    messages
+  );
 
 
     /*
@@ -375,7 +576,8 @@ async function chat(req, res) {
       await generateResponse(
         searchResult.messages,
         user,
-        conversationCount
+        conversationCount,
+        generationOptions
       );
 
 
@@ -413,8 +615,10 @@ async function chat(req, res) {
 
 async function streamChat(req, res) {
   try {
-    const { messages } =
-      req.body;
+    const {
+  messages,
+  generationOptions = {},
+} = req.body;
 
     if (
       !Array.isArray(messages) ||
@@ -540,15 +744,205 @@ async function streamChat(req, res) {
 
 
     /*
+|--------------------------------------------------------------------------
+| Image Generation
+|--------------------------------------------------------------------------
+*/
+
+if (
+  generationOptions?.mode === "image"
+) {
+  const lastUserMessage =
+    getLastUserMessage(messages);
+
+  const prompt =
+    lastUserMessage?.content?.trim();
+
+  if (!prompt) {
+    return res.status(400).json({
+      error:
+        "Image prompt is required.",
+    });
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | SSE headers
+  |--------------------------------------------------------------------------
+  */
+
+  res.setHeader(
+    "Content-Type",
+    "text/event-stream"
+  );
+
+  res.setHeader(
+    "Cache-Control",
+    "no-cache"
+  );
+
+  res.setHeader(
+    "Connection",
+    "keep-alive"
+  );
+
+  try {
+    let result;
+
+    /*
     |--------------------------------------------------------------------------
-    | Web Search
+    | Image-to-Image
     |--------------------------------------------------------------------------
     */
 
-    const searchResult =
-      await prepareWebSearch(
-        messages
-      );
+    if (
+      generationOptions.image
+    ) {
+      const imageData =
+        generationOptions.image;
+
+      const match =
+        imageData.match(
+          /^data:(.+?);base64,(.+)$/
+        );
+
+      if (!match) {
+        throw new Error(
+          "Invalid input image data."
+        );
+      }
+
+      const mimeType =
+        match[1];
+
+      const base64Data =
+        match[2];
+
+      const imageBuffer =
+        Buffer.from(
+          base64Data,
+          "base64"
+        );
+
+      const extension =
+        mimeType.split("/")[1] ||
+        "png";
+
+      result =
+        await generateImageToImage(
+          prompt,
+          imageBuffer,
+          `ashani_input.${extension}`
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Text-to-Image
+    |--------------------------------------------------------------------------
+    */
+
+    else {
+      result =
+        result =
+  await generateTextToImage(
+    prompt,
+    generationOptions.resolution ||
+      "SD"
+  );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Send generated image
+    |--------------------------------------------------------------------------
+    */
+
+    const storedImage =
+  saveGeneratedImage(
+    result.buffer,
+    result.mimeType
+  );
+
+const imageBase64 =
+  result.buffer.toString(
+    "base64"
+  );
+
+const imageDataUrl =
+  `data:${result.mimeType};base64,${imageBase64}`;
+
+/*
+|--------------------------------------------------------------------------
+| Persist image for registered users
+|--------------------------------------------------------------------------
+*/
+
+const conversationId =
+  Number(
+    generationOptions?.conversationId
+  );
+
+if (
+  req.user &&
+  Number.isInteger(
+    conversationId
+  )
+) {
+  await addImageMessage(
+    conversationId,
+    req.user.userId,
+    storedImage.relativePath,
+    storedImage.filename,
+    storedImage.mimeType
+  );
+}
+
+res.write(
+  `data: ${JSON.stringify({
+    type: "image",
+    image: imageDataUrl,
+    filename:
+      storedImage.filename,
+    mode: generationOptions.image
+      ? "image-to-image"
+      : "text-to-image",
+  })}\n\n`
+);
+
+    res.write(
+      "data: [DONE]\n\n"
+    );
+
+    return res.end();
+
+  } catch (error) {
+    console.error(
+      "ComfyUI image generation error:",
+      error
+    );
+
+    res.write(
+      `data: ${JSON.stringify({
+        error:
+          "Failed to generate image.",
+      })}\n\n`
+    );
+
+    return res.end();
+  }
+}
+
+/*
+|--------------------------------------------------------------------------
+| Web Search
+|--------------------------------------------------------------------------
+*/
+
+const searchResult =
+  await prepareWebSearch(
+    messages
+  );
 
 
     /*
@@ -558,11 +952,12 @@ async function streamChat(req, res) {
     */
 
     const stream =
-      await streamResponse(
-        searchResult.messages,
-        user,
-        conversationCount
-      );
+  await streamResponse(
+    searchResult.messages,
+    user,
+    conversationCount,
+    generationOptions
+  );
 
 
     /*

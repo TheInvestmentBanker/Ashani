@@ -271,26 +271,5 @@ module.exports = {
   getOne,
   add,
   rename,
-  getConversationCount,
 };
 
-async function getConversationCount(userId) {
-  return new Promise((resolve, reject) => {
-    db.get(
-      `
-      SELECT COUNT(*) AS count
-      FROM conversations
-      WHERE user_id = ?
-      `,
-      [userId],
-      (error, row) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-
-        resolve(row?.count || 0);
-      }
-    );
-  });
-}
