@@ -16,7 +16,10 @@ const API_BASE_URL =
 export async function streamMessage(
   messages,
   onToken,
-  onComplete
+  onComplete,
+  onMeta,
+  onImage,
+  generationOptions = {}
 ) {
   const token = getToken();
   const guestId = getGuestId();
@@ -28,7 +31,8 @@ export async function streamMessage(
 
   // Send JWT when logged in
   if (token) {
-    headers.Authorization = `Bearer ${token}`;
+    headers.Authorization =
+      `Bearer ${token}`;
   }
 
   console.log("CHAT REQUEST AUTH:", {
@@ -41,9 +45,11 @@ export async function streamMessage(
     {
       method: "POST",
       headers,
+
       body: JSON.stringify({
-        messages,
-      }),
+  messages,
+  generationOptions,
+}),
     }
   );
 
@@ -52,8 +58,12 @@ export async function streamMessage(
       "Failed to connect to Ashani.";
 
     try {
-      const data = await response.json();
-      errorMessage = data.error || errorMessage;
+      const data =
+        await response.json();
+
+      errorMessage =
+        data.error ||
+        errorMessage;
     } catch {
       // Ignore JSON parsing failure
     }
@@ -67,8 +77,11 @@ export async function streamMessage(
     );
   }
 
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
+  const reader =
+    response.body.getReader();
+
+  const decoder =
+    new TextDecoder();
 
   let buffer = "";
   let fullResponse = "";
@@ -81,13 +94,18 @@ export async function streamMessage(
       break;
     }
 
-    buffer += decoder.decode(value, {
-      stream: true,
-    });
+    buffer += decoder.decode(
+      value,
+      {
+        stream: true,
+      }
+    );
 
-    const events = buffer.split("\n\n");
+    const events =
+      buffer.split("\n\n");
 
-    buffer = events.pop() || "";
+    buffer =
+      events.pop() || "";
 
     for (const event of events) {
       const line = event
@@ -100,7 +118,8 @@ export async function streamMessage(
         continue;
       }
 
-      const data = line.slice(6);
+      const data =
+        line.slice(6);
 
       // Stream finished
       if (data === "[DONE]") {
@@ -108,15 +127,47 @@ export async function streamMessage(
       }
 
       try {
-        const parsed = JSON.parse(data);
+        const parsed =
+          JSON.parse(data);
 
         if (parsed.error) {
-          throw new Error(parsed.error);
+          console.error(
+            "Ashani stream error:",
+            parsed.error
+          );
+
+          continue;
         }
 
+        /*
+        |--------------------------------------------------------------------------
+        | Stream metadata
+        |--------------------------------------------------------------------------
+        */
+
+        if (parsed.type === "meta") {
+  onMeta?.(parsed);
+  continue;
+}
+
+if (parsed.type === "image") {
+  onImage?.(parsed);
+  continue;
+}
+
+        /*
+        |--------------------------------------------------------------------------
+        | Stream content
+        |--------------------------------------------------------------------------
+        */
+
         if (parsed.content) {
-          fullResponse += parsed.content;
-          onToken?.(parsed.content);
+          fullResponse +=
+            parsed.content;
+
+          onToken?.(
+            parsed.content
+          );
         }
       } catch (error) {
         console.error(
@@ -131,6 +182,7 @@ export async function streamMessage(
 
   return fullResponse;
 }
+
 /*
 |--------------------------------------------------------------------------
 | Get current usage
@@ -276,8 +328,10 @@ export async function createConversation(
       method: "POST",
 
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+        "Content-Type":
+          "application/json",
+        Authorization:
+          `Bearer ${token}`,
       },
 
       body: JSON.stringify({
@@ -318,7 +372,8 @@ export async function getConversations() {
       method: "GET",
 
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization:
+          `Bearer ${token}`,
       },
     }
   );
@@ -359,7 +414,8 @@ export async function getConversation(
       method: "GET",
 
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization:
+          `Bearer ${token}`,
       },
     }
   );
@@ -403,8 +459,10 @@ export async function saveMessage(
       method: "POST",
 
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+        "Content-Type":
+          "application/json",
+        Authorization:
+          `Bearer ${token}`,
       },
 
       body: JSON.stringify({
@@ -452,8 +510,10 @@ export async function renameConversation(
       method: "PATCH",
 
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+        "Content-Type":
+          "application/json",
+        Authorization:
+          `Bearer ${token}`,
       },
 
       body: JSON.stringify({

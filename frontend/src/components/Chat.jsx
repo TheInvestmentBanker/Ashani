@@ -217,11 +217,13 @@ function Chat({
             <Box
               sx={{
                 width: "100%",
+                
               }}
             >
               <ChatInput
                 onSend={onSend}
                 disabled={loading}
+                
               />
             </Box>
 
@@ -248,9 +250,9 @@ function Chat({
             },
 
             py: {
-              xs: 2.5,
-              sm: 3,
-              md: 4,
+              xs: 9,
+              sm: 10,
+              md: 3,
             },
 
             scrollbarWidth: "thin",
@@ -301,6 +303,11 @@ function Chat({
                   key={index}
                   role={message.role}
                   content={message.content}
+                  image={message.image}
+                  image_filename={
+                      message.image_filename
+                  }
+                  webSources={message.webSources}
                 />
               )
             )}
@@ -382,11 +389,15 @@ function Chat({
       {!isHome && (
         <Box
           sx={{
-            width: "100%",
+            mx: "auto",
+            width: {
+              xs: "95%",
+              md: "100%"
+            },
 
             pb: {
-              xs: 1,
-              sm: 2,
+              xs: 7.5,
+              sm: 3.5,
               md: 2.5,
             },
           }}

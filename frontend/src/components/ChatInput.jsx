@@ -1,21 +1,61 @@
 import { useEffect, useRef, useState } from "react";
+
 import {
   Box,
   IconButton,
   Tooltip,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  Typography,
 } from "@mui/material";
 
 import AddIcon from "@mui/icons-material/Add";
+import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
+import PsychologyOutlinedIcon from "@mui/icons-material/PsychologyOutlined";
 import MicIcon from "@mui/icons-material/Mic";
 import StopIcon from "@mui/icons-material/Stop";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 
-function ChatInput({ onSend, disabled = false }) {
+function ChatInput({
+  onSend,
+  disabled = false,
+}) {
   const [message, setMessage] = useState("");
   const [listening, setListening] = useState(false);
 
-  const recognitionRef = useRef(null);
-  const textareaRef = useRef(null);
+  const [menuAnchor, setMenuAnchor] =
+    useState(null);
+
+  const [imageMode, setImageMode] =
+  useState(false);
+
+const [imageResolution, setImageResolution] =
+  useState("SD");
+
+const [resolutionAnchor, setResolutionAnchor] =
+  useState(null);
+
+const [thinkMode, setThinkMode] =
+  useState(false);
+
+  const [selectedImage, setSelectedImage] =
+    useState(null);
+
+  const recognitionRef =
+    useRef(null);
+
+  const textareaRef =
+    useRef(null);
+
+  const fileInputRef =
+    useRef(null);
+
+  /*
+  |--------------------------------------------------------------------------
+  | VOICE RECOGNITION
+  |--------------------------------------------------------------------------
+  */
 
   useEffect(() => {
     const SpeechRecognition =
@@ -26,7 +66,8 @@ function ChatInput({ onSend, disabled = false }) {
       return;
     }
 
-    const recognition = new SpeechRecognition();
+    const recognition =
+      new SpeechRecognition();
 
     recognition.continuous = true;
     recognition.interimResults = true;
@@ -49,7 +90,8 @@ function ChatInput({ onSend, disabled = false }) {
       if (finalTranscript) {
         setMessage((previous) => {
           const separator =
-            previous && !previous.endsWith(" ")
+            previous &&
+            !previous.endsWith(" ")
               ? " "
               : "";
 
@@ -79,7 +121,8 @@ function ChatInput({ onSend, disabled = false }) {
       setListening(false);
     };
 
-    recognitionRef.current = recognition;
+    recognitionRef.current =
+      recognition;
 
     return () => {
       recognition.stop();
@@ -87,10 +130,21 @@ function ChatInput({ onSend, disabled = false }) {
     };
   }, []);
 
-  const handleSubmit = () => {
-    const trimmedMessage = message.trim();
+  /*
+  |--------------------------------------------------------------------------
+  | SUBMIT
+  |--------------------------------------------------------------------------
+  */
 
-    if (!trimmedMessage || disabled) {
+  const handleSubmit = async () => {
+    const trimmedMessage =
+      message.trim();
+
+    if (
+      (!trimmedMessage &&
+        !selectedImage) ||
+      disabled
+    ) {
       return;
     }
 
@@ -98,9 +152,87 @@ function ChatInput({ onSend, disabled = false }) {
       recognitionRef.current?.stop();
     }
 
-    onSend(trimmedMessage);
+    let imageData = null;
+
+    /*
+     * Convert selected image into a
+     * base64 data URL.
+     */
+
+    if (selectedImage) {
+      try {
+        imageData =
+          await new Promise(
+            (resolve, reject) => {
+              const reader =
+                new FileReader();
+
+              reader.onload = () => {
+                resolve(
+                  reader.result
+                );
+              };
+
+              reader.onerror = () => {
+                reject(
+                  new Error(
+                    "Failed to read the selected image."
+                  )
+                );
+              };
+
+              reader.readAsDataURL(
+                selectedImage
+              );
+            }
+          );
+      } catch (error) {
+        console.error(
+          "Image reading failed:",
+          error
+        );
+
+        return;
+      }
+    }
+
+    /*
+     * Send message + generation options
+     * to ChatPage.
+     *
+     * imageMode = true
+     *   -> Text-to-Image
+     *   -> Image-to-Image if image exists
+     *
+     * imageMode = false
+     *   -> Normal chat / image attachment
+     */
+
+    onSend(trimmedMessage, {
+  think: thinkMode,
+  mode: imageMode
+    ? "image"
+    : "chat",
+  image: imageData,
+  resolution: imageResolution,
+});
+
+    /*
+     * Reset message and uploaded image.
+     *
+     * Image mode itself remains selected,
+     * just like Think mode.
+     */
+
     setMessage("");
+    setSelectedImage(null);
   };
+
+  /*
+  |--------------------------------------------------------------------------
+  | KEYBOARD
+  |--------------------------------------------------------------------------
+  */
 
   const handleKeyDown = (event) => {
     if (
@@ -112,17 +244,25 @@ function ChatInput({ onSend, disabled = false }) {
     }
   };
 
+  /*
+  |--------------------------------------------------------------------------
+  | VOICE
+  |--------------------------------------------------------------------------
+  */
+
   const handleVoice = () => {
     if (disabled) {
       return;
     }
 
-    const recognition = recognitionRef.current;
+    const recognition =
+      recognitionRef.current;
 
     if (!recognition) {
       alert(
         "Voice input is not supported by this browser."
       );
+
       return;
     }
 
@@ -134,17 +274,134 @@ function ChatInput({ onSend, disabled = false }) {
     recognition.start();
   };
 
+  /*
+  |--------------------------------------------------------------------------
+  | ADD MENU
+  |--------------------------------------------------------------------------
+  */
+
+  const handleAddClick = (event) => {
+    if (disabled) {
+      return;
+    }
+
+    setMenuAnchor(
+      event.currentTarget
+    );
+  };
+
+  const handleMenuClose = () => {
+    setMenuAnchor(null);
+  };
+
+  /*
+  |--------------------------------------------------------------------------
+  | IMAGE GENERATION MODE
+  |--------------------------------------------------------------------------
+  */
+
+  const handleImageModeToggle = () => {
+    if (disabled) {
+      return;
+    }
+
+    setImageMode(
+      (previous) => !previous
+    );
+  };
+
+  /*
+  |--------------------------------------------------------------------------
+  | IMAGE UPLOAD
+  |--------------------------------------------------------------------------
+  */
+
+  const handleUploadImage = () => {
+    setMenuAnchor(null);
+
+    fileInputRef.current?.click();
+  };
+
+  const handleImageChange = (
+    event
+  ) => {
+    const file =
+      event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    /*
+     * Make sure the selected file
+     * is actually an image.
+     */
+
+    if (
+      !file.type.startsWith(
+        "image/"
+      )
+    ) {
+      console.error(
+        "Selected file is not an image."
+      );
+
+      event.target.value = "";
+
+      return;
+    }
+
+    setSelectedImage(file);
+
+    /*
+     * IMPORTANT:
+     * Uploading an image does NOT
+     * automatically enable Image mode.
+     *
+     * This allows normal image
+     * attachments independently.
+     */
+
+    /*
+     * Reset input value so the same
+     * image can be selected again later.
+     */
+
+    event.target.value = "";
+  };
+
+  /*
+  |--------------------------------------------------------------------------
+  | THINK MODE
+  |--------------------------------------------------------------------------
+  */
+
+  const handleThinkToggle = () => {
+    if (disabled) {
+      return;
+    }
+
+    setThinkMode(
+      (previous) => !previous
+    );
+  };
+
+  /*
+  |--------------------------------------------------------------------------
+  | RENDER
+  |--------------------------------------------------------------------------
+  */
+
   return (
     <Box
       sx={{
         width: "100%",
-
         px: {
           xs: 1,
           sm: 2.5,
         },
-
-        backgroundColor: "transparent",
+        backgroundColor:
+          "transparent",
       }}
     >
       <Box
@@ -155,9 +412,7 @@ function ChatInput({ onSend, disabled = false }) {
         }}
         sx={{
           width: "100%",
-
           maxWidth: 820,
-
           mx: "auto",
 
           display: "grid",
@@ -165,17 +420,18 @@ function ChatInput({ onSend, disabled = false }) {
           /*
            * Desktop:
            *
-           * + | textarea | mic | send
+           * + | image | think | textarea | mic | send
            *
            * Mobile:
            *
            * textarea
-           * +             mic   send
+           * + | image | think | mic | send
            */
+
           gridTemplateColumns: {
-            xs: "1fr auto auto",
-            sm: "auto minmax(0, 1fr) auto auto",
-          },
+  xs: "auto auto auto auto auto auto",
+  sm: "auto auto auto auto minmax(0, 1fr) auto auto",
+},
 
           gridTemplateRows: {
             xs: "auto auto",
@@ -228,7 +484,8 @@ function ChatInput({ onSend, disabled = false }) {
             "border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease",
 
           "&:hover": {
-            borderColor: "text.secondary",
+            borderColor:
+              "text.secondary",
           },
 
           "&:focus-within": {
@@ -246,7 +503,6 @@ function ChatInput({ onSend, disabled = false }) {
           },
         }}
       >
-
         {/* =================================================
             MESSAGE
            ================================================= */}
@@ -256,7 +512,9 @@ function ChatInput({ onSend, disabled = false }) {
           component="textarea"
           value={message}
           onChange={(event) =>
-            setMessage(event.target.value)
+            setMessage(
+              event.target.value
+            )
           }
           onKeyDown={handleKeyDown}
           disabled={disabled}
@@ -268,12 +526,13 @@ function ChatInput({ onSend, disabled = false }) {
              * full-width first row
              *
              * Desktop:
-             * second grid column
+             * fourth grid column
              */
+
             gridColumn: {
-              xs: "1 / -1",
-              sm: "2",
-            },
+  xs: "1 / -1",
+  sm: "5",
+},
 
             gridRow: {
               xs: "1",
@@ -336,13 +595,14 @@ function ChatInput({ onSend, disabled = false }) {
         />
 
         {/* =================================================
-            ADD
+            ADD / UPLOAD
            ================================================= */}
 
         <Tooltip title="Add files and tools">
           <IconButton
             type="button"
             size="medium"
+            onClick={handleAddClick}
             disabled={disabled}
             sx={{
               gridColumn: {
@@ -375,8 +635,6 @@ function ChatInput({ onSend, disabled = false }) {
               color:
                 "text.secondary",
 
-              opacity: 0.9,
-
               "&:hover": {
                 backgroundColor:
                   "action.hover",
@@ -387,6 +645,289 @@ function ChatInput({ onSend, disabled = false }) {
             }}
           >
             <AddIcon />
+          </IconButton>
+        </Tooltip>
+
+        <Menu
+          anchorEl={menuAnchor}
+          open={Boolean(menuAnchor)}
+          onClose={handleMenuClose}
+          anchorOrigin={{
+            vertical: "top",
+            horizontal: "left",
+          }}
+          transformOrigin={{
+            vertical: "bottom",
+            horizontal: "left",
+          }}
+        >
+          <MenuItem
+            onClick={
+              handleUploadImage
+            }
+          >
+            <ListItemIcon>
+              <ImageOutlinedIcon
+                fontSize="small"
+              />
+            </ListItemIcon>
+
+            <Typography variant="body2">
+              Upload image
+            </Typography>
+          </MenuItem>
+        </Menu>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={
+            handleImageChange
+          }
+        />
+
+        {/* =================================================
+            IMAGE GENERATION
+           ================================================= */}
+
+        <Tooltip
+          title={
+            imageMode
+              ? "Image generation enabled"
+              : "Generate an image"
+          }
+        >
+          <IconButton
+            type="button"
+            size="medium"
+            onClick={
+              handleImageModeToggle
+            }
+            disabled={disabled}
+            sx={{
+              gridColumn: {
+  xs: "2",
+  sm: "2",
+},
+
+              gridRow: {
+                xs: "2",
+                sm: "1",
+              },
+
+              width: {
+                xs: 38,
+                sm: 42,
+              },
+
+              height: {
+                xs: 38,
+                sm: 42,
+              },
+
+              flexShrink: 0,
+
+              borderRadius: "50%",
+
+              color: imageMode
+                ? "primary.main"
+                : "text.secondary",
+
+              backgroundColor:
+                imageMode
+                  ? "action.selected"
+                  : "transparent",
+
+              "&:hover": {
+                backgroundColor:
+                  "action.hover",
+              },
+            }}
+          >
+            <ImageOutlinedIcon />
+          </IconButton>
+        </Tooltip>
+
+        {/* =================================================
+    IMAGE RESOLUTION
+   ================================================= */}
+
+{imageMode && (
+  <>
+    <Tooltip title="Image resolution">
+      <IconButton
+        type="button"
+        size="small"
+        onClick={(event) =>
+          setResolutionAnchor(
+            event.currentTarget
+          )
+        }
+        disabled={disabled}
+        sx={{
+          gridColumn: {
+            xs: "3",
+            sm: "3",
+          },
+
+          gridRow: {
+            xs: "2",
+            sm: "1",
+          },
+
+          minWidth: {
+            xs: 42,
+            sm: 48,
+          },
+
+          height: {
+            xs: 34,
+            sm: 38,
+          },
+
+          px: 1,
+
+          borderRadius: "18px",
+
+          color:
+            "text.secondary",
+
+          backgroundColor:
+            "transparent",
+
+          "&:hover": {
+            backgroundColor:
+              "action.hover",
+          },
+        }}
+      >
+        <Typography
+          variant="caption"
+          sx={{
+            fontWeight: 700,
+            fontSize: "0.72rem",
+          }}
+        >
+          {imageResolution}
+        </Typography>
+      </IconButton>
+    </Tooltip>
+
+    <Menu
+      anchorEl={resolutionAnchor}
+      open={Boolean(resolutionAnchor)}
+      onClose={() =>
+        setResolutionAnchor(null)
+      }
+      anchorOrigin={{
+        vertical: "top",
+        horizontal: "center",
+      }}
+      transformOrigin={{
+        vertical: "bottom",
+        horizontal: "center",
+      }}
+    >
+      {[
+  {
+    label: "HD",
+    resolution: "HD",
+  },
+  {
+    label: "SD",
+    resolution: "SD",
+  },
+  {
+    label: "LD",
+    resolution: "LD",
+  },
+].map((option) => (
+        <MenuItem
+          key={option.resolution}
+          selected={
+            imageResolution ===
+            option.resolution
+          }
+          onClick={() => {
+            setImageResolution(
+              option.resolution
+            );
+
+            setResolutionAnchor(
+              null
+            );
+          }}
+        >
+          <Typography variant="body2">
+            {option.label}
+          </Typography>
+        </MenuItem>
+      ))}
+    </Menu>
+  </>
+)}
+
+{/* =================================================
+    THINK
+   ================================================= */}
+
+        <Tooltip
+          title={
+            thinkMode
+              ? "Heavy reasoning enabled"
+              : "Ask Ashani to think deeply"
+          }
+        >
+          <IconButton
+            type="button"
+            size="medium"
+            onClick={
+              handleThinkToggle
+            }
+            disabled={disabled}
+            sx={{
+              gridColumn: {
+  xs: "4",
+  sm: "4",
+},
+
+              gridRow: {
+                xs: "2",
+                sm: "1",
+              },
+
+              width: {
+                xs: 38,
+                sm: 42,
+              },
+
+              height: {
+                xs: 38,
+                sm: 42,
+              },
+
+              flexShrink: 0,
+
+              borderRadius: "50%",
+
+              color: thinkMode
+                ? "primary.main"
+                : "text.secondary",
+
+              backgroundColor:
+                thinkMode
+                  ? "action.selected"
+                  : "transparent",
+
+              "&:hover": {
+                backgroundColor:
+                  "action.hover",
+              },
+            }}
+          >
+            <PsychologyOutlinedIcon />
           </IconButton>
         </Tooltip>
 
@@ -408,9 +949,9 @@ function ChatInput({ onSend, disabled = false }) {
             disabled={disabled}
             sx={{
               gridColumn: {
-                xs: "2",
-                sm: "3",
-              },
+  xs: "5",
+  sm: "6",
+},
 
               gridRow: {
                 xs: "2",
@@ -462,15 +1003,15 @@ function ChatInput({ onSend, disabled = false }) {
           <IconButton
             type="submit"
             disabled={
-              !message.trim() ||
+              (!message.trim() &&
+                !selectedImage) ||
               disabled
             }
             sx={{
               gridColumn: {
-                xs: "3",
-                sm: "4",
-              },
-
+  xs: "6",
+  sm: "7",
+},
               gridRow: {
                 xs: "2",
                 sm: "1",
@@ -491,13 +1032,15 @@ function ChatInput({ onSend, disabled = false }) {
               borderRadius: "50%",
 
               backgroundColor:
-                message.trim() &&
+                (message.trim() ||
+                  selectedImage) &&
                 !disabled
                   ? "primary.main"
                   : "action.disabledBackground",
 
               color:
-                message.trim() &&
+                (message.trim() ||
+                  selectedImage) &&
                 !disabled
                   ? "primary.contrastText"
                   : "text.disabled",
@@ -522,7 +1065,6 @@ function ChatInput({ onSend, disabled = false }) {
             <ArrowUpwardIcon />
           </IconButton>
         </Tooltip>
-
       </Box>
     </Box>
   );

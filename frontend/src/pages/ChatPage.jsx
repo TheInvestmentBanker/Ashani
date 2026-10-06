@@ -175,6 +175,12 @@ const conversationId =
   const [loading, setLoading] =
     useState(false);
 
+ // const [webSearchUsed, setWebSearchUsed] =
+   // useState(false);
+
+  //const [generatedImage, setGeneratedImage] =
+    ///useState(null);
+
   /*
    * If we already received the newly-created
    * conversation through router state, there is
@@ -214,7 +220,7 @@ const conversationId =
       : getGuestGreeting();
 
   });
-
+    
 
   /*
   |--------------------------------------------------------------------------
@@ -236,6 +242,7 @@ const conversationId =
         messagesForAI,
         conversationIdToUse,
         isPersistent,
+        generationOptions = {},
       }) => {
 
         try {
@@ -349,103 +356,218 @@ const conversationId =
           |--------------------------------------------------------------------------
           */
 
-          const assistantResponse =
-            await streamMessage(
+      const assistantResponse =
+  await streamMessage(
+    messagesForAI,
 
-              messagesForAI,
-
-              (token) => {
-
-                setConversations(
-                  (previous) =>
-                    previous.map(
-                      (item) => {
-
-                        if (
-                          item.id !==
-                          conversationIdToUse
-                        ) {
-                          return item;
-                        }
-
-
-                        const updatedMessages =
-                          [
-                            ...(item.messages || []),
-                          ];
-
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | Find assistant placeholder
-                        |--------------------------------------------------------------------------
-                        */
-
-                        let assistantIndex =
-                          updatedMessages.length - 1;
-
-
-                        if (
-                          updatedMessages[
-                            assistantIndex
-                          ]?.role !== "assistant"
-                        ) {
-
-                          updatedMessages.push({
-                            role: "assistant",
-                            content: "",
-                          });
-
-                          assistantIndex =
-                            updatedMessages.length - 1;
-                        }
-
-
-                        const assistantMessage =
-                          updatedMessages[
-                            assistantIndex
-                          ];
-
-
-                        updatedMessages[
-                          assistantIndex
-                        ] = {
-
-                          ...assistantMessage,
-
-                          content:
-                            (
-                              assistantMessage.content ||
-                              ""
-                            ) + token,
-
-                        };
-
-
-                        return {
-
-                          ...item,
-
-                          messages:
-                            updatedMessages,
-
-                          updated_at:
-                            new Date().toISOString(),
-
-                        };
-
-                      }
-                    )
-                );
-
-              },
-
-              () => {
-                setLoading(false);
+    (token) => {
+      setConversations(
+        (previous) =>
+          previous.map(
+            (item) => {
+              if (
+                item.id !==
+                conversationIdToUse
+              ) {
+                return item;
               }
 
-            );
+              const updatedMessages =
+                [
+                  ...(item.messages || []),
+                ];
 
+              let assistantIndex =
+                updatedMessages.length - 1;
+
+              if (
+                updatedMessages[
+                  assistantIndex
+                ]?.role !== "assistant"
+              ) {
+                updatedMessages.push({
+                  role: "assistant",
+                  content: "",
+                });
+
+                assistantIndex =
+                  updatedMessages.length - 1;
+              }
+
+              const assistantMessage =
+                updatedMessages[
+                  assistantIndex
+                ];
+
+              updatedMessages[
+                assistantIndex
+              ] = {
+                ...assistantMessage,
+                content:
+                  (
+                    assistantMessage.content ||
+                    ""
+                  ) + token,
+              };
+
+              return {
+                ...item,
+                messages:
+                  updatedMessages,
+                updated_at:
+                  new Date().toISOString(),
+              };
+            }
+          )
+      );
+    },
+
+    () => {
+      setLoading(false);
+    },
+
+    (meta) => {
+      if (meta?.type !== "meta") {
+        return;
+      }
+
+      const sources = Array.isArray(
+        meta.sources
+      )
+        ? meta.sources
+        : [];
+
+      if (
+        meta.searched !== true ||
+        sources.length === 0
+      ) {
+        return;
+      }
+
+      setConversations(
+        (previous) =>
+          previous.map(
+            (item) => {
+              if (
+                item.id !==
+                conversationIdToUse
+              ) {
+                return item;
+              }
+
+              const updatedMessages =
+                [
+                  ...(item.messages || []),
+                ];
+
+              const assistantIndex =
+                updatedMessages.length - 1;
+
+              if (
+                updatedMessages[
+                  assistantIndex
+                ]?.role !== "assistant"
+              ) {
+                return item;
+              }
+
+              updatedMessages[
+                assistantIndex
+              ] = {
+                ...updatedMessages[
+                  assistantIndex
+                ],
+                webSources: sources,
+              };
+
+              return {
+                ...item,
+                messages:
+                  updatedMessages,
+              };
+            }
+          )
+      );
+    },
+
+    (imageData) => {
+  if (
+    imageData?.type !== "image" ||
+    !imageData?.image
+  ) {
+    return;
+  }
+
+  setConversations(
+    (previous) =>
+      previous.map(
+        (item) => {
+          if (
+            item.id !==
+            conversationIdToUse
+          ) {
+            return item;
+          }
+
+          const updatedMessages =
+            [
+              ...(item.messages || []),
+            ];
+
+          const assistantIndex =
+            updatedMessages.length - 1;
+
+          if (
+            updatedMessages[
+              assistantIndex
+            ]?.role !== "assistant"
+          ) {
+            return item;
+          }
+
+          updatedMessages[
+            assistantIndex
+          ] = {
+            ...updatedMessages[
+              assistantIndex
+            ],
+            image:
+              imageData.image,
+            image_filename:
+              imageData.filename ||
+              "ashani-generated.png",
+          };
+
+          /*
+          |--------------------------------------------------------------------------
+          | Guest conversations
+          |--------------------------------------------------------------------------
+          */
+
+          if (!isPersistent) {
+            saveGuestConversation({
+              ...item,
+              messages:
+                updatedMessages,
+              updated_at:
+                new Date().toISOString(),
+            });
+          }
+
+          return {
+            ...item,
+            messages:
+              updatedMessages,
+            updated_at:
+              new Date().toISOString(),
+          };
+        }
+      )
+  );
+},
+
+    generationOptions
+  );
 
           /*
           |--------------------------------------------------------------------------
@@ -742,19 +864,20 @@ if (
 
 
   startAssistantResponse({
+  conversation:
+    initialConversation,
 
-    conversation:
-      initialConversation,
+  messagesForAI,
 
-    messagesForAI,
+  conversationIdToUse:
+    conversationId,
 
-    conversationIdToUse:
-      conversationId,
+  isPersistent:
+    initialConversation.persistent === true,
 
-    isPersistent:
-      initialConversation.persistent === true,
-
-  });
+  generationOptions:
+    initialConversation.generationOptions || {},
+});
 
 }
 
@@ -923,15 +1046,22 @@ return;
 
 
         const loadedMessages =
-          (data.messages || []).map(
-            (message) => ({
-              role:
-                message.role,
+  (data.messages || []).map(
+    (message) => ({
+      role:
+        message.role,
 
-              content:
-                message.content,
-            })
-          );
+      content:
+        message.content,
+
+      image:
+        message.image || null,
+
+      image_filename:
+        message.image_filename ||
+        null,
+    })
+  );
 
 
         const loadedConversation = {
@@ -1085,16 +1215,19 @@ return;
   */
 
   const handleSend = async (
-    content
-  ) => {
+  content,
+  generationOptions = {}
+) => {
 
-    if (
-      loading ||
-      !content ||
-      !content.trim()
-    ) {
-      return;
-    }
+  const hasImage =
+    Boolean(generationOptions.image);
+
+  if (
+    loading ||
+    (!content?.trim() && !hasImage)
+  ) {
+    return;
+  }
 
 
     /*
@@ -1152,6 +1285,8 @@ if (user) {
       content: "",
     },
   ],
+
+  generationOptions,
 
   persistent: true,
 };
@@ -1230,20 +1365,22 @@ if (user) {
 
       const newConversation = {
 
-        ...conversation,
+  ...conversation,
 
-        messages: [
+  messages: [
 
-          userMessage,
+    userMessage,
 
-          {
-            role: "assistant",
-            content: "",
-          },
+    {
+      role: "assistant",
+      content: "",
+    },
 
-        ],
+  ],
 
-      };
+  generationOptions,
+
+};
 
 
       /*
@@ -1409,24 +1546,21 @@ if (user) {
     */
 
     await startAssistantResponse({
+  conversation: {
+    ...currentConversation,
+    messages:
+      uiMessages,
+  },
 
-      conversation: {
+  messagesForAI,
 
-        ...currentConversation,
+  conversationIdToUse:
+    conversationId,
 
-        messages:
-          uiMessages,
+  isPersistent,
 
-      },
-
-      messagesForAI,
-
-      conversationIdToUse:
-        conversationId,
-
-      isPersistent,
-
-    });
+  generationOptions,
+});
 
   };
 

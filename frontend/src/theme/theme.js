@@ -18,21 +18,21 @@ export const colors = {
   },
 
   light: {
-    primary: "#6D28D9",
-    secondary: "#0891B2",
+  primary: "#6D28D9",
+  secondary: "#0891B2",
 
-    background: "#FAF8F2",
-    surface: "#FFFEFA",
-    surfaceHover: "#F1F1F4",
+  background: "#FAF8F2",
+  surface: "#FFFEFA",
+  surfaceHover: "#F3F0E8",
 
-    text: "#18181B",
-    textSecondary: "#71717A",
+  text: "#18181B",
+  textSecondary: "#71717A",
 
-    border: "#E4E4E7",
-    userMessage: "#F0F0F3",
-    aiMessage: "#FFFFFF",
-  },
-};
+  border: "#E5E1D8",
+  userMessage: "#F1EEE7",
+  aiMessage: "#FFFEFA",
+},
+}
 
 export const getTheme = (mode = "dark") => {
   const palette = colors[mode];
