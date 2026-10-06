@@ -2,7 +2,9 @@ import {
   BrowserRouter,
   Routes,
   Route,
+  Navigate,
 } from "react-router-dom";
+
 import { useCallback, useState } from "react";
 
 import ChatPage from "./pages/ChatPage";
@@ -13,6 +15,7 @@ import AshaniSplash from "./components/AshaniSplash";
 import {
   ThemeModeProvider,
 } from "./theme/ThemeModeContext";
+
 
 function HomeWithSplash() {
   const [showSplash, setShowSplash] = useState(true);
@@ -34,16 +37,37 @@ function HomeWithSplash() {
   );
 }
 
+
 function App() {
   return (
     <ThemeModeProvider>
       <BrowserRouter>
+
         <Routes>
 
+          {/* =====================================================
+              HOME
+             ===================================================== */}
+
           <Route
-  path="/"
-  element={<HomeWithSplash />}
-/>
+            path="/"
+            element={<HomeWithSplash />}
+          />
+
+
+          {/* =====================================================
+              CONVERSATION
+             ===================================================== */}
+
+          <Route
+            path="/chat/:conversationId"
+            element={<ChatPage />}
+          />
+
+
+          {/* =====================================================
+              AUTH
+             ===================================================== */}
 
           <Route
             path="/login"
@@ -55,7 +79,23 @@ function App() {
             element={<Register />}
           />
 
+
+          {/* =====================================================
+              FALLBACK
+             ===================================================== */}
+
+          <Route
+            path="*"
+            element={
+              <Navigate
+                to="/"
+                replace
+              />
+            }
+          />
+
         </Routes>
+
       </BrowserRouter>
     </ThemeModeProvider>
   );

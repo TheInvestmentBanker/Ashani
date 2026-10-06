@@ -1,4 +1,16 @@
-import { useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
+import {
+  useNavigate,
+  useParams,
+  useLocation,
+} from "react-router-dom";
+
 import { Box } from "@mui/material";
 
 import Header from "../components/Header";
@@ -21,6 +33,17 @@ import {
   getUserGreeting,
 } from "../utils/greeting";
 
+
+/*
+|--------------------------------------------------------------------------
+| GUEST CONVERSATION STORAGE
+|--------------------------------------------------------------------------
+*/
+
+const GUEST_STORAGE_PREFIX =
+  "ashani_guest_conversation_";
+
+
 function createGuestConversation() {
   return {
     id: `guest-${crypto.randomUUID()}`,
@@ -30,7 +53,106 @@ function createGuestConversation() {
   };
 }
 
+
+function getGuestStorageKey(id) {
+  return `${GUEST_STORAGE_PREFIX}${id}`;
+}
+
+
+function saveGuestConversation(conversation) {
+  try {
+    localStorage.setItem(
+      getGuestStorageKey(conversation.id),
+      JSON.stringify(conversation)
+    );
+  } catch (error) {
+    console.error(
+      "Failed to save guest conversation:",
+      error
+    );
+  }
+}
+
+
+function loadGuestConversation(id) {
+  try {
+    const raw = localStorage.getItem(
+      getGuestStorageKey(id)
+    );
+
+    if (!raw) {
+      return null;
+    }
+
+    return JSON.parse(raw);
+
+  } catch (error) {
+
+    console.error(
+      "Failed to load guest conversation:",
+      error
+    );
+
+    return null;
+  }
+}
+
+
+function guestConversationExists(conversation) {
+  return Boolean(
+    conversation &&
+    Array.isArray(conversation.messages)
+  );
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| CHAT PAGE
+|--------------------------------------------------------------------------
+*/
+
 function ChatPage() {
+
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const { conversationId } = useParams();
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | INITIAL NAVIGATION DATA
+  |--------------------------------------------------------------------------
+  |
+  | When the first message is sent from "/",
+  | we create the conversation and navigate to:
+  |
+  | /chat/:conversationId
+  |
+  | The newly-created conversation is passed
+  | through React Router state.
+  |
+  | autoStart tells this page:
+  |
+  | "The user has just sent the first message.
+  | Start Ashani's response immediately."
+  |
+  */
+
+  const initialConversation =
+    location.state?.initialConversation || null;
+
+  const autoStart =
+    location.state?.autoStart === true;
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | STATE
+  |--------------------------------------------------------------------------
+  */
+
   const [sidebarOpen, setSidebarOpen] =
     useState(false);
 
@@ -43,129 +165,840 @@ function ChatPage() {
   const [loading, setLoading] =
     useState(false);
 
+  /*
+   * If we already received the newly-created
+   * conversation through router state, there is
+   * nothing to load.
+   *
+   * Otherwise, load the conversation normally.
+   */
+
   const [initializing, setInitializing] =
-    useState(true);
-
-  const user = getUser();
-
-  const [greeting] = useState(() => {
-  const currentUser = getUser();
-
-  if (currentUser) {
-    return getUserGreeting(
-      currentUser
-    );
-  }
-
-  return getGuestGreeting();
-});
+    useState(!initialConversation);
+  
+  const autoStartStartedRef =
+  useRef(false);
 
   /*
   |--------------------------------------------------------------------------
-  | Initialize conversations
+  | USER
+  |--------------------------------------------------------------------------
+  */
+
+  const user = getUser();
+
+  const userId =
+    user?.id || null;
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | GREETING
+  |--------------------------------------------------------------------------
+  */
+
+  const [greeting] = useState(() => {
+
+    return user
+      ? getUserGreeting(user)
+      : getGuestGreeting();
+
+  });
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | STREAM ASSISTANT RESPONSE
+  |--------------------------------------------------------------------------
+  |
+  | This function is used by BOTH:
+  |
+  | 1. The first message from the home page
+  | 2. Messages inside an existing conversation
+  |
+  */
+
+
+  const startAssistantResponse =
+    useCallback(
+      async ({
+        conversation,
+        messagesForAI,
+        conversationIdToUse,
+        isPersistent,
+      }) => {
+
+        try {
+
+          /*
+          |--------------------------------------------------------------------------
+          | Save user message
+          |--------------------------------------------------------------------------
+          */
+
+          const lastUserMessage =
+            [...messagesForAI]
+              .reverse()
+              .find(
+                (message) =>
+                  message.role === "user"
+              );
+
+
+          if (
+            isPersistent &&
+            lastUserMessage
+          ) {
+
+            await saveMessage(
+              conversationIdToUse,
+              "user",
+              lastUserMessage.content
+            );
+          }
+
+
+          /*
+          |--------------------------------------------------------------------------
+          | Generate title
+          |--------------------------------------------------------------------------
+          */
+
+          if (
+            conversation.title ===
+            "New conversation"
+          ) {
+
+            const title =
+              lastUserMessage?.content
+                ?.trim()
+                .replace(/\s+/g, " ")
+                .slice(0, 50) ||
+              "New conversation";
+
+
+            if (isPersistent) {
+
+              await renameConversation(
+                conversationIdToUse,
+                title
+              );
+
+            }
+
+
+            setConversations(
+              (previous) =>
+                previous.map(
+                  (item) =>
+                    item.id ===
+                    conversationIdToUse
+                      ? {
+                          ...item,
+                          title,
+                        }
+                      : item
+                )
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Guest title
+            |--------------------------------------------------------------------------
+            */
+
+            if (!isPersistent) {
+
+              const guestConversation =
+                loadGuestConversation(
+                  conversationIdToUse
+                );
+
+
+              if (
+                guestConversationExists(
+                  guestConversation
+                )
+              ) {
+
+                saveGuestConversation({
+                  ...guestConversation,
+                  title,
+                });
+
+              }
+            }
+
+          }
+
+
+          /*
+          |--------------------------------------------------------------------------
+          | STREAM
+          |--------------------------------------------------------------------------
+          */
+
+          const assistantResponse =
+            await streamMessage(
+
+              messagesForAI,
+
+              (token) => {
+
+                setConversations(
+                  (previous) =>
+                    previous.map(
+                      (item) => {
+
+                        if (
+                          item.id !==
+                          conversationIdToUse
+                        ) {
+                          return item;
+                        }
+
+
+                        const updatedMessages =
+                          [
+                            ...(item.messages || []),
+                          ];
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | Find assistant placeholder
+                        |--------------------------------------------------------------------------
+                        */
+
+                        let assistantIndex =
+                          updatedMessages.length - 1;
+
+
+                        if (
+                          updatedMessages[
+                            assistantIndex
+                          ]?.role !== "assistant"
+                        ) {
+
+                          updatedMessages.push({
+                            role: "assistant",
+                            content: "",
+                          });
+
+                          assistantIndex =
+                            updatedMessages.length - 1;
+                        }
+
+
+                        const assistantMessage =
+                          updatedMessages[
+                            assistantIndex
+                          ];
+
+
+                        updatedMessages[
+                          assistantIndex
+                        ] = {
+
+                          ...assistantMessage,
+
+                          content:
+                            (
+                              assistantMessage.content ||
+                              ""
+                            ) + token,
+
+                        };
+
+
+                        return {
+
+                          ...item,
+
+                          messages:
+                            updatedMessages,
+
+                          updated_at:
+                            new Date().toISOString(),
+
+                        };
+
+                      }
+                    )
+                );
+
+              },
+
+              () => {
+                setLoading(false);
+              }
+
+            );
+
+
+          /*
+          |--------------------------------------------------------------------------
+          | SAVE ASSISTANT RESPONSE
+          |--------------------------------------------------------------------------
+          */
+
+          if (
+            isPersistent &&
+            assistantResponse
+          ) {
+
+            await saveMessage(
+              conversationIdToUse,
+              "assistant",
+              assistantResponse
+            );
+
+          }
+
+
+          /*
+          |--------------------------------------------------------------------------
+          | GUEST SAVE
+          |--------------------------------------------------------------------------
+          */
+
+          if (
+            !isPersistent &&
+            assistantResponse
+          ) {
+
+            const latestConversation =
+              loadGuestConversation(
+                conversationIdToUse
+              );
+
+
+            const baseConversation =
+              guestConversationExists(
+                latestConversation
+              )
+                ? latestConversation
+                : conversation;
+
+
+            saveGuestConversation({
+
+              ...baseConversation,
+
+              messages: [
+                ...messagesForAI,
+
+                {
+                  role: "assistant",
+                  content:
+                    assistantResponse,
+                },
+              ],
+
+              updated_at:
+                new Date().toISOString(),
+
+            });
+
+          }
+
+
+          /*
+          |--------------------------------------------------------------------------
+          | Update local timestamp
+          |--------------------------------------------------------------------------
+          */
+
+          setConversations(
+            (previous) => {
+
+              const updated =
+                previous.map(
+                  (item) =>
+                    item.id ===
+                    conversationIdToUse
+                      ? {
+                          ...item,
+                          updated_at:
+                            new Date().toISOString(),
+                        }
+                      : item
+                );
+
+
+              return updated.sort(
+                (a, b) =>
+                  new Date(
+                    b.updated_at || 0
+                  ) -
+                  new Date(
+                    a.updated_at || 0
+                  )
+              );
+
+            }
+          );
+
+
+          return assistantResponse;
+
+
+        } catch (error) {
+
+          console.error(
+            "Chat error:",
+            error
+          );
+
+
+          /*
+          |--------------------------------------------------------------------------
+          | Show error inside assistant bubble
+          |--------------------------------------------------------------------------
+          */
+
+          setConversations(
+            (previous) =>
+              previous.map(
+                (item) => {
+
+                  if (
+                    item.id !==
+                    conversationIdToUse
+                  ) {
+                    return item;
+                  }
+
+
+                  const updatedMessages =
+                    [
+                      ...(item.messages || []),
+                    ];
+
+
+                  const lastIndex =
+                    updatedMessages.length - 1;
+
+
+                  const lastMessage =
+                    updatedMessages[
+                      lastIndex
+                    ];
+
+
+                  if (
+                    lastMessage?.role ===
+                    "assistant"
+                  ) {
+
+                    updatedMessages[
+                      lastIndex
+                    ] = {
+
+                      ...lastMessage,
+
+                      content:
+                        error.message ||
+                        "Sorry, I couldn't connect to Ashani's AI server.",
+
+                    };
+
+                  }
+
+
+                  return {
+
+                    ...item,
+
+                    messages:
+                      updatedMessages,
+
+                  };
+
+                }
+              )
+          );
+
+        } finally {
+
+          setLoading(false);
+
+        }
+
+      },
+      []
+    );
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | INITIALIZE PAGE
   |--------------------------------------------------------------------------
   */
 
   useEffect(() => {
+
+    let cancelled = false;
+
+
     async function initialize() {
+
+      setInitializing(true);
+
+
       try {
+
         /*
         |--------------------------------------------------------------------------
-        | Registered user
+        | NEWLY CREATED CONVERSATION
         |--------------------------------------------------------------------------
+        |
+        | This happens immediately after the first message
+        | is sent from the home page.
+        |
         */
 
-        if (user) {
-          const savedConversations =
-            await getConversations();
+        if (
+          conversationId &&
+          initialConversation
+        ) {
 
-          if (savedConversations.length > 0) {
-            setConversations(
-              savedConversations.map(
-                (conversation) => ({
-                  ...conversation,
-                  messages: [],
-                  persistent: true,
-                })
-              )
-            );
-
-            setActiveConversationId(
-              savedConversations[0].id
-            );
-          } else {
-            /*
-            |--------------------------------------------------------------------------
-            | Create first conversation
-            |--------------------------------------------------------------------------
-            */
-
-            const conversation =
-              await createConversation();
-
-            setConversations([
-              {
-                ...conversation,
-                messages: [],
-                persistent: true,
-              },
-            ]);
-
-            setActiveConversationId(
-              conversation.id
-            );
+          if (cancelled) {
+            return;
           }
-        } else {
+
+
+          setActiveConversationId(
+            conversationId
+          );
+
+
+          setConversations([
+            initialConversation,
+          ]);
+
+
           /*
           |--------------------------------------------------------------------------
-          | Guest
+          | Automatically start AI
           |--------------------------------------------------------------------------
           */
 
+          /*
+|--------------------------------------------------------------------------
+| We already have the conversation.
+|
+| Stop the page-level loading screen immediately.
+|--------------------------------------------------------------------------
+*/
+
+setInitializing(false);
+
+
+/*
+|--------------------------------------------------------------------------
+| Automatically start AI
+|--------------------------------------------------------------------------
+*/
+
+if (
+  autoStart &&
+  !autoStartStartedRef.current &&
+  initialConversation.messages?.some(
+    (message) =>
+      message.role === "user"
+  )
+) {
+
+  /*
+  |--------------------------------------------------------------------------
+  | Prevent React StrictMode / effect re-runs
+  | from starting the first AI response twice.
+  |--------------------------------------------------------------------------
+  */
+
+  autoStartStartedRef.current = true;
+
+  setLoading(true);
+
+
+  const messagesForAI =
+    initialConversation.messages
+      .filter(
+        (message) =>
+          message.role === "user"
+      );
+
+
+  startAssistantResponse({
+
+    conversation:
+      initialConversation,
+
+    messagesForAI,
+
+    conversationIdToUse:
+      conversationId,
+
+    isPersistent:
+      initialConversation.persistent === true,
+
+  });
+
+}
+
+
+return;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | HOME PAGE
+        |--------------------------------------------------------------------------
+        |
+        | "/"
+        |
+        | There is deliberately NO active conversation.
+        |
+        */
+
+        if (!conversationId) {
+
+          if (user) {
+
+            try {
+
+              const savedConversations =
+                await getConversations();
+
+
+              if (cancelled) {
+                return;
+              }
+
+
+              setConversations(
+                savedConversations.map(
+                  (conversation) => ({
+                    ...conversation,
+
+                    /*
+                    | Only titles are needed
+                    | in the sidebar.
+                    |
+                    | Messages are loaded when
+                    | the conversation is opened.
+                    */
+
+                    messages: [],
+
+                    persistent: true,
+
+                  })
+                )
+              );
+
+
+            } catch (error) {
+
+              console.error(
+                "Failed to load conversations:",
+                error
+              );
+
+              setConversations([]);
+
+            }
+
+          } else {
+
+            /*
+            |--------------------------------------------------------------------------
+            | Guest home page
+            |--------------------------------------------------------------------------
+            */
+
+            setConversations([]);
+
+          }
+
+
+          setActiveConversationId(null);
+
+          return;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CONVERSATION PAGE
+        |--------------------------------------------------------------------------
+        */
+
+        setActiveConversationId(
+          conversationId
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | GUEST CONVERSATION
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+          conversationId.startsWith(
+            "guest-"
+          )
+        ) {
+
           const guestConversation =
-            createGuestConversation();
+            loadGuestConversation(
+              conversationId
+            );
+
+
+          if (
+            !guestConversationExists(
+              guestConversation
+            )
+          ) {
+
+            console.warn(
+              "Guest conversation not found:",
+              conversationId
+            );
+
+
+            navigate("/", {
+              replace: true,
+            });
+
+
+            return;
+          }
+
+
+          if (cancelled) {
+            return;
+          }
+
 
           setConversations([
             guestConversation,
           ]);
 
-          setActiveConversationId(
-            guestConversation.id
-          );
+
+          return;
         }
-      } catch (error) {
-        console.error(
-          "Failed to initialize conversations:",
-          error
-        );
+
 
         /*
         |--------------------------------------------------------------------------
-        | Fallback
+        | REGISTERED USER CONVERSATION
         |--------------------------------------------------------------------------
         */
 
-        const fallback =
-          createGuestConversation();
+        const data =
+          await getConversation(
+            conversationId
+          );
+
+
+        if (cancelled) {
+          return;
+        }
+
+
+        const loadedMessages =
+          (data.messages || []).map(
+            (message) => ({
+              role:
+                message.role,
+
+              content:
+                message.content,
+            })
+          );
+
+
+        const loadedConversation = {
+
+          ...data.conversation,
+
+          messages:
+            loadedMessages,
+
+          persistent:
+            true,
+
+        };
+
 
         setConversations([
-          fallback,
+          loadedConversation,
         ]);
 
-        setActiveConversationId(
-          fallback.id
+
+      } catch (error) {
+
+        console.error(
+          "Failed to initialize page:",
+          error
         );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Invalid conversation URL
+        |--------------------------------------------------------------------------
+        */
+
+        if (conversationId) {
+
+          navigate("/", {
+            replace: true,
+          });
+
+        }
+
       } finally {
-        setInitializing(false);
+
+        if (!cancelled) {
+
+          setInitializing(false);
+
+        }
+
       }
+
     }
 
+
     initialize();
-  }, []);
+
+
+    return () => {
+
+      cancelled = true;
+
+    };
+
+  }, [
+    conversationId,
+    navigate,
+    userId,
+    initialConversation,
+    autoStart,
+    startAssistantResponse,
+  ]);
+
 
   /*
   |--------------------------------------------------------------------------
-  | Active conversation
+  | ACTIVE CONVERSATION
   |--------------------------------------------------------------------------
   */
 
@@ -176,199 +1009,328 @@ function ChatPage() {
         activeConversationId
     );
 
+
   const messages =
     activeConversation?.messages || [];
 
+
   /*
   |--------------------------------------------------------------------------
-  | New Chat
+  | NEW CHAT
   |--------------------------------------------------------------------------
+  |
+  | IMPORTANT:
+  |
+  | New Chat means:
+  |
+  | "/" = fresh Ashani home page.
+  |
+  | We do NOT create a conversation here.
+  |
   */
 
-  const handleNewChat = async () => {
+  const handleNewChat = () => {
+
     if (loading) {
       return;
     }
 
-    try {
-      if (user) {
-        const conversation =
-          await createConversation();
 
-        const newConversation = {
-          ...conversation,
-          messages: [],
-          persistent: true,
-        };
+    setSidebarOpen(false);
 
-        setConversations(
-          (previous) => [
-            newConversation,
-            ...previous,
-          ]
-        );
 
-        setActiveConversationId(
-          conversation.id
-        );
-      } else {
-        const newConversation =
-          createGuestConversation();
+    navigate("/");
 
-        setConversations(
-          (previous) => [
-            newConversation,
-            ...previous,
-          ]
-        );
-
-        setActiveConversationId(
-          newConversation.id
-        );
-      }
-
-      setSidebarOpen(false);
-    } catch (error) {
-      console.error(
-        "Failed to create conversation:",
-        error
-      );
-    }
   };
+
 
   /*
   |--------------------------------------------------------------------------
-  | Select conversation
+  | SELECT CONVERSATION
   |--------------------------------------------------------------------------
   */
 
   const handleSelectConversation =
-    async (id) => {
+    (id) => {
+
       if (loading) {
         return;
       }
 
-      /*
-      |--------------------------------------------------------------------------
-      | Already loaded
-      |--------------------------------------------------------------------------
-      */
 
-      const existing =
-        conversations.find(
-          (conversation) =>
-            conversation.id === id
-        );
+      setSidebarOpen(false);
 
-      if (
-        existing &&
-        existing.messages.length > 0
-      ) {
-        setActiveConversationId(id);
-        setSidebarOpen(false);
-        return;
-      }
 
-      /*
-      |--------------------------------------------------------------------------
-      | Guest conversation
-      |--------------------------------------------------------------------------
-      */
+      navigate(
+        `/chat/${id}`
+      );
 
-      if (
-        typeof id === "string" &&
-        id.startsWith("guest-")
-      ) {
-        setActiveConversationId(id);
-        setSidebarOpen(false);
-        return;
-      }
-
-      /*
-      |--------------------------------------------------------------------------
-      | Load conversation from SQLite
-      |--------------------------------------------------------------------------
-      */
-
-      try {
-        const data =
-          await getConversation(id);
-
-        const loadedMessages =
-          data.messages.map(
-            (message) => ({
-              role: message.role,
-              content: message.content,
-            })
-          );
-
-        setConversations(
-          (previous) =>
-            previous.map(
-              (conversation) =>
-                conversation.id === id
-                  ? {
-                      ...conversation,
-                      title:
-                        data.conversation.title,
-                      messages:
-                        loadedMessages,
-                      persistent: true,
-                    }
-                  : conversation
-            )
-        );
-
-        setActiveConversationId(id);
-        setSidebarOpen(false);
-      } catch (error) {
-        console.error(
-          "Failed to load conversation:",
-          error
-        );
-      }
     };
+
 
   /*
   |--------------------------------------------------------------------------
-  | Send message
+  | SEND MESSAGE
   |--------------------------------------------------------------------------
   */
 
   const handleSend = async (
     content
   ) => {
+
     if (
       loading ||
-      !activeConversation
+      !content ||
+      !content.trim()
     ) {
       return;
     }
 
-    const conversationId =
-      activeConversation.id;
-
-    const isPersistent =
-      activeConversation.persistent;
-
-    const previousMessages =
-      activeConversation.messages;
-
-    const userMessage = {
-      role: "user",
-      content,
-    };
-
-    const messagesForAI = [
-      ...previousMessages,
-      userMessage,
-    ];
 
     /*
     |--------------------------------------------------------------------------
-    | Update UI immediately
+    | HOME PAGE → FIRST MESSAGE
     |--------------------------------------------------------------------------
     */
+
+    if (!conversationId) {
+
+      const userMessage = {
+
+        role: "user",
+
+        content:
+          content.trim(),
+
+      };
+
+
+      /*
+      |--------------------------------------------------------------------------
+      | REGISTERED USER
+      |--------------------------------------------------------------------------
+      */
+
+      if (user) {
+
+        try {
+
+          const conversation =
+            await createConversation();
+
+
+          const newConversation = {
+
+            ...conversation,
+
+            messages: [
+
+              userMessage,
+
+              {
+                role: "assistant",
+                content: "",
+              },
+
+            ],
+
+            persistent: true,
+
+          };
+
+
+          /*
+          |--------------------------------------------------------------------------
+          | Navigate FIRST.
+          |
+          | The new ChatPage will take over
+          | and start the AI request.
+          |--------------------------------------------------------------------------
+          */
+
+          navigate(
+            `/chat/${conversation.id}`,
+            {
+              state: {
+
+                initialConversation:
+                  newConversation,
+
+                autoStart:
+                  true,
+
+              },
+            }
+          );
+
+
+        } catch (error) {
+
+          console.error(
+            "Failed to create conversation:",
+            error
+          );
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | VERY IMPORTANT
+        |--------------------------------------------------------------------------
+        |
+        | Stop this old HomePage instance.
+        |
+        | The newly-mounted conversation page
+        | owns the AI request now.
+        |--------------------------------------------------------------------------
+        */
+
+        return;
+      }
+
+
+      /*
+      |--------------------------------------------------------------------------
+      | GUEST USER
+      |--------------------------------------------------------------------------
+      */
+
+      const conversation =
+        createGuestConversation();
+
+
+      const newConversation = {
+
+        ...conversation,
+
+        messages: [
+
+          userMessage,
+
+          {
+            role: "assistant",
+            content: "",
+          },
+
+        ],
+
+      };
+
+
+      /*
+      |--------------------------------------------------------------------------
+      | Save BEFORE navigation.
+      |--------------------------------------------------------------------------
+      */
+
+      saveGuestConversation(
+        newConversation
+      );
+
+
+      /*
+      |--------------------------------------------------------------------------
+      | Navigate to conversation
+      |--------------------------------------------------------------------------
+      */
+
+      navigate(
+        `/chat/${newConversation.id}`,
+        {
+          state: {
+
+            initialConversation:
+              newConversation,
+
+            autoStart:
+              true,
+
+          },
+        }
+      );
+
+
+      /*
+      |--------------------------------------------------------------------------
+      | Stop the home page instance.
+      |--------------------------------------------------------------------------
+      */
+
+      return;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | EXISTING CONVERSATION
+    |--------------------------------------------------------------------------
+    */
+
+    const currentConversation =
+      activeConversation ||
+      conversations.find(
+        (conversation) =>
+          conversation.id ===
+          conversationId
+      );
+
+
+    if (!currentConversation) {
+
+      console.error(
+        "No active conversation available."
+      );
+
+      return;
+
+    }
+
+
+    const userMessage = {
+
+      role: "user",
+
+      content:
+        content.trim(),
+
+    };
+
+
+    const previousMessages =
+      currentConversation.messages || [];
+
+
+    const messagesForAI = [
+
+      ...previousMessages,
+
+      userMessage,
+
+    ];
+
+
+    const isPersistent =
+      currentConversation.persistent === true;
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Immediately show user message + assistant placeholder
+    |--------------------------------------------------------------------------
+    */
+
+    const uiMessages = [
+
+      ...messagesForAI,
+
+      {
+        role: "assistant",
+        content: "",
+      },
+
+    ];
+
 
     setConversations(
       (previous) =>
@@ -377,334 +1339,196 @@ function ChatPage() {
             conversation.id ===
             conversationId
               ? {
+
                   ...conversation,
-                  messages: [
-                    ...messagesForAI,
-                    {
-                      role: "assistant",
-                      content: "",
-                    },
-                  ],
+
+                  messages:
+                    uiMessages,
+
                 }
               : conversation
         )
     );
 
+
     setLoading(true);
 
-    try {
-      /*
-      |--------------------------------------------------------------------------
-      | Save user message
-      |--------------------------------------------------------------------------
-      */
 
-      if (isPersistent) {
-        await saveMessage(
-          conversationId,
-          "user",
-          content
-        );
-      }
+    /*
+    |--------------------------------------------------------------------------
+    | Guest: save immediately
+    |--------------------------------------------------------------------------
+    */
 
-      /*
-      |--------------------------------------------------------------------------
-      | Generate conversation title
-      |--------------------------------------------------------------------------
-      */
+    if (!isPersistent) {
 
-      if (
-        activeConversation.title ===
-        "New conversation"
-      ) {
-        const title =
-          content
-            .trim()
-            .replace(/\s+/g, " ")
-            .slice(0, 50);
+      saveGuestConversation({
 
-        if (isPersistent) {
-          await renameConversation(
-            conversationId,
-            title
-          );
-        }
+        ...currentConversation,
 
-        setConversations(
-          (previous) =>
-            previous.map(
-              (conversation) =>
-                conversation.id ===
-                conversationId
-                  ? {
-                      ...conversation,
-                      title,
-                    }
-                  : conversation
-            )
-        );
-      }
+        messages:
+          uiMessages,
 
-      /*
-      |--------------------------------------------------------------------------
-      | Stream AI response
-      |--------------------------------------------------------------------------
-      */
+      });
 
-      const assistantResponse =
-        await streamMessage(
-          messagesForAI,
-
-          (token) => {
-            setConversations(
-              (previous) =>
-                previous.map(
-                  (conversation) => {
-                    if (
-                      conversation.id !==
-                      conversationId
-                    ) {
-                      return conversation;
-                    }
-
-                    const updatedMessages =
-                      [
-                        ...conversation.messages,
-                      ];
-
-                    const lastIndex =
-                      updatedMessages.length -
-                      1;
-
-                    const lastMessage =
-                      updatedMessages[
-                        lastIndex
-                      ];
-
-                    if (
-                      !lastMessage ||
-                      lastMessage.role !==
-                        "assistant"
-                    ) {
-                      return conversation;
-                    }
-
-                    updatedMessages[
-                      lastIndex
-                    ] = {
-                      ...lastMessage,
-                      content:
-                        lastMessage.content +
-                        token,
-                    };
-
-                    return {
-                      ...conversation,
-                      messages:
-                        updatedMessages,
-                    };
-                  }
-                )
-            );
-          },
-
-          () => {
-            setLoading(false);
-          }
-        );
-
-      /*
-      |--------------------------------------------------------------------------
-      | Save completed assistant response
-      |--------------------------------------------------------------------------
-      */
-
-      if (
-        isPersistent &&
-        assistantResponse
-      ) {
-        await saveMessage(
-          conversationId,
-          "assistant",
-          assistantResponse
-        );
-      }
-
-      /*
-      |--------------------------------------------------------------------------
-      | Move conversation to top
-      |--------------------------------------------------------------------------
-      */
-
-      setConversations(
-        (previous) => {
-          const updated =
-            previous.map(
-              (conversation) =>
-                conversation.id ===
-                conversationId
-                  ? {
-                      ...conversation,
-                      updated_at:
-                        new Date().toISOString(),
-                    }
-                  : conversation
-            );
-
-          return updated.sort(
-            (a, b) =>
-              new Date(
-                b.updated_at || 0
-              ) -
-              new Date(
-                a.updated_at || 0
-              )
-          );
-        }
-      );
-    } catch (error) {
-      console.error(
-        "Chat error:",
-        error
-      );
-
-      /*
-      |--------------------------------------------------------------------------
-      | Show error inside assistant message
-      |--------------------------------------------------------------------------
-      */
-
-      setConversations(
-        (previous) =>
-          previous.map(
-            (conversation) => {
-              if (
-                conversation.id !==
-                conversationId
-              ) {
-                return conversation;
-              }
-
-              const updatedMessages =
-                [
-                  ...conversation.messages,
-                ];
-
-              const lastIndex =
-                updatedMessages.length -
-                1;
-
-              const lastMessage =
-                updatedMessages[
-                  lastIndex
-                ];
-
-              if (
-                lastMessage?.role ===
-                "assistant"
-              ) {
-                updatedMessages[
-                  lastIndex
-                ] = {
-                  ...lastMessage,
-                  content:
-                    error.message ||
-                    "Sorry, I couldn't connect to Ashani's AI server.",
-                };
-              }
-
-              return {
-                ...conversation,
-                messages:
-                  updatedMessages,
-              };
-            }
-          )
-      );
-
-      setLoading(false);
     }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Start AI
+    |--------------------------------------------------------------------------
+    */
+
+    await startAssistantResponse({
+
+      conversation: {
+
+        ...currentConversation,
+
+        messages:
+          uiMessages,
+
+      },
+
+      messagesForAI,
+
+      conversationIdToUse:
+        conversationId,
+
+      isPersistent,
+
+    });
+
   };
+
 
   /*
   |--------------------------------------------------------------------------
-  | Loading screen
+  | LOADING SCREEN
   |--------------------------------------------------------------------------
   */
 
   if (initializing) {
+
     return (
+
       <Box
         sx={{
           height: "100vh",
+
           display: "flex",
+
           alignItems: "center",
-          justifyContent: "center",
+
+          justifyContent:
+            "center",
+
           backgroundColor:
             "background.default",
-          color: "text.secondary",
+
+          color:
+            "text.secondary",
         }}
       >
         Loading Ashani...
       </Box>
+
     );
+
   }
+
 
   /*
   |--------------------------------------------------------------------------
-  | Render
+  | RENDER
   |--------------------------------------------------------------------------
   */
 
   return (
+
     <Box
       sx={{
         height: "100vh",
+
         overflow: "hidden",
+
         backgroundColor:
           "background.default",
       }}
     >
+
       <Header
         onMenuClick={() =>
           setSidebarOpen(true)
         }
       />
 
+
       <Sidebar
-        open={sidebarOpen}
+
+        open={
+          sidebarOpen
+        }
+
         onClose={() =>
           setSidebarOpen(false)
         }
+
         conversations={
           conversations
         }
+
         activeConversationId={
           activeConversationId
         }
+
         onNewChat={
           handleNewChat
         }
+
         onSelectConversation={
           handleSelectConversation
         }
+
       />
+
 
       <Box
         sx={{
           height: "100%",
+
           pt: "64px",
         }}
       >
+
         <Chat
-          messages={messages}
-          onSend={handleSend}
-          loading={loading}
-          greeting={greeting}
+
+          messages={
+            messages
+          }
+
+          onSend={
+            handleSend
+          }
+
+          loading={
+            loading
+          }
+
+          greeting={
+            greeting
+          }
+
         />
+
       </Box>
+
     </Box>
+
   );
+
 }
+
 
 export default ChatPage;

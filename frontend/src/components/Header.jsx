@@ -166,7 +166,7 @@ function Header({ onMenuClick }) {
         <Typography
           sx={{
             fontWeight: 700,
-
+            fontFamily: 'Garet' & 'sans-serif',
             fontSize: {
               xs: "1.05rem",
               sm: "1.25rem",
@@ -180,7 +180,7 @@ function Header({ onMenuClick }) {
             lineHeight: 1,
           }}
         >
-          ASHANI
+          Ashani
         </Typography>
 
 
