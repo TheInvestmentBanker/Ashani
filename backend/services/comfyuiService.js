@@ -376,10 +376,17 @@ workflow["9"].inputs.filename_prefix =
 |--------------------------------------------------------------------------
 */
 
+/*
+|--------------------------------------------------------------------------
+| Image-to-Image
+|--------------------------------------------------------------------------
+*/
+
 async function generateImageToImage(
   prompt,
   imageBuffer,
-  filename
+  filename,
+  profile = {}
 ) {
   if (
     typeof prompt !== "string" ||
@@ -400,6 +407,12 @@ async function generateImageToImage(
     );
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | Upload source image to ComfyUI
+  |--------------------------------------------------------------------------
+  */
+
   const uploaded =
     await uploadImage(
       imageBuffer,
@@ -410,19 +423,135 @@ async function generateImageToImage(
     uploaded.name ||
     filename;
 
+  /*
+  |--------------------------------------------------------------------------
+  | Load Img2Img workflow
+  |--------------------------------------------------------------------------
+  */
+
   const workflow =
     loadWorkflow(
       IMAGE_WORKFLOW_PATH
     );
 
+  /*
+  |--------------------------------------------------------------------------
+  | Validate required nodes
+  |--------------------------------------------------------------------------
+  */
+
+  const requiredNodes = [
+    "68", // CLIP Text Encode
+    "74", // Load Image
+    "75", // VAE Encode
+    "71", // KSampler
+    "67", // VAE Decode
+    "9",  // Save Image
+  ];
+
+  for (
+    const nodeId of requiredNodes
+  ) {
+    if (
+      !workflow[nodeId] ||
+      !workflow[nodeId].inputs
+    ) {
+      throw new Error(
+        `Img2Img workflow is missing node ${nodeId} or its inputs.`
+      );
+    }
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Prompt
+  |--------------------------------------------------------------------------
+  */
+
   workflow["68"].inputs.text =
     prompt.trim();
+
+  /*
+  |--------------------------------------------------------------------------
+  | Uploaded image
+  |--------------------------------------------------------------------------
+  */
 
   workflow["74"].inputs.image =
     uploadedFilename;
 
+  /*
+  |--------------------------------------------------------------------------
+  | Generation profile
+  |--------------------------------------------------------------------------
+  |
+  | Defaults are deliberately conservative for
+  | the RTX 3060 6GB + Z-Image Turbo setup.
+  |
+  */
+
+  const steps =
+    Number.isFinite(
+      profile.steps
+    )
+      ? profile.steps
+      : 15;
+
+  const denoise =
+    Number.isFinite(
+      profile.denoise
+    )
+      ? profile.denoise
+      : 0.45;
+
+  const cfg =
+    Number.isFinite(
+      profile.cfg
+    )
+      ? profile.cfg
+      : 1.0;
+
+  /*
+  |--------------------------------------------------------------------------
+  | KSampler
+  |--------------------------------------------------------------------------
+  */
+
+  workflow["71"].inputs.steps =
+    steps;
+
+  workflow["71"].inputs.denoise =
+    denoise;
+
+  workflow["71"].inputs.cfg =
+    cfg;
+
+  /*
+  |--------------------------------------------------------------------------
+  | Seed
+  |--------------------------------------------------------------------------
+  */
+
+  workflow["71"].inputs.seed =
+    Math.floor(
+      Math.random() *
+        4294967296
+    );
+
+  /*
+  |--------------------------------------------------------------------------
+  | Output filename
+  |--------------------------------------------------------------------------
+  */
+
   workflow["9"].inputs.filename_prefix =
     "Ashani_I2I";
+
+  /*
+  |--------------------------------------------------------------------------
+  | Queue
+  |--------------------------------------------------------------------------
+  */
 
   const promptId =
     await queuePrompt(
@@ -434,10 +563,31 @@ async function generateImageToImage(
     promptId
   );
 
+  console.log(
+    "COMFYUI I2I PROFILE:",
+    {
+      steps,
+      denoise,
+      cfg,
+    }
+  );
+
+  /*
+  |--------------------------------------------------------------------------
+  | Wait
+  |--------------------------------------------------------------------------
+  */
+
   const history =
     await waitForCompletion(
       promptId
     );
+
+  /*
+  |--------------------------------------------------------------------------
+  | Retrieve result
+  |--------------------------------------------------------------------------
+  */
 
   return await getOutputImage(
     history
