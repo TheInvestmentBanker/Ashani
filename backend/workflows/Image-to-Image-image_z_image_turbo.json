@@ -1,7 +1,7 @@
 {
   "9": {
     "inputs": {
-      "filename_prefix": "Super",
+      "filename_prefix": "Ashani_Img2Img",
       "images": [
         "67",
         0
@@ -12,6 +12,7 @@
       "title": "Save Image"
     }
   },
+
   "64": {
     "inputs": {
       "clip_name": "qwen_3_4b_fp4_mixed.safetensors",
@@ -23,10 +24,11 @@
       "title": "Load CLIP"
     }
   },
+
   "66": {
     "inputs": {
       "conditioning": [
-        "68",
+        "77",
         0
       ]
     },
@@ -35,6 +37,7 @@
       "title": "Conditioning Zero Out"
     }
   },
+
   "67": {
     "inputs": {
       "samples": [
@@ -51,30 +54,7 @@
       "title": "VAE Decode"
     }
   },
-  "68": {
-    "inputs": {
-      "text": "Transform the reference photograph into a modern editorial line-art portrait illustration while preserving the person's identity with extremely high fidelity. The subject must remain immediately recognizable as the exact same person in the reference photograph: preserve his facial proportions, face shape, forehead, eyebrows, eyes, nose, mouth, lips, jawline, beard, hairstyle, glasses, ears, skin tone and distinctive facial characteristics exactly as they appear in the reference. Do not redesign, beautify, idealize, age, de-age or reinterpret his face. Use the visual language of sophisticated contemporary portrait line art: clean confident black and dark-indigo contour lines, carefully drawn facial outlines, expressive but anatomically accurate linework, simplified shapes and selective areas of flat color. The face should be primarily defined by precise outlines and a few carefully placed shadow shapes, with restrained accents of deep navy, indigo, muted blue, warm orange and ochre, creating a tasteful modern editorial color palette. Keep the pilot's recognizable white airline uniform, shoulder epaulettes, glasses and beard. Remove the aircraft seat, cockpit controls, cables, dashboard, harsh shadows and all unnecessary objects from the original photograph, replacing them with a clean minimal off-white or very light neutral background with a few subtle abstract color strokes. The final image should resemble a professionally commissioned newspaper or magazine editorial portrait illustration, similar to sophisticated hand-drawn black ink portrait artwork with modern color accents: crisp linework, elegant contours, minimal shading, graphic and contemporary, intelligent and dignified. It must look intentionally illustrated rather than photographic or painterly. No oil painting, no realistic painting, no photorealism, no watercolor, no anime, no cartoon, no caricature, no exaggerated facial features, no altered facial structure, no different person, no distorted eyes, nose or mouth, no excessive detail, and no dramatic background.",
-      "clip": [
-        "64",
-        0
-      ]
-    },
-    "class_type": "CLIPTextEncode",
-    "_meta": {
-      "title": "CLIP Text Encode (Prompt)"
-    }
-  },
-  "69": {
-    "inputs": {
-      "width": 1536,
-      "height": 864,
-      "batch_size": 1
-    },
-    "class_type": "EmptySD3LatentImage",
-    "_meta": {
-      "title": "EmptySD3LatentImage"
-    }
-  },
+
   "70": {
     "inputs": {
       "shift": 3,
@@ -85,23 +65,27 @@
     },
     "class_type": "ModelSamplingAuraFlow",
     "_meta": {
-      "title": "ModelSamplingAuraFlow"
+      "title": "Model Sampling AuraFlow"
     }
   },
+
   "71": {
     "inputs": {
-      "seed": 116191955988791,
-      "steps": 10,
+      "seed": 935134443298247,
+
+      "steps": 15,
       "cfg": 1,
       "sampler_name": "euler",
       "scheduler": "simple",
-      "denoise": 0.5,
+
+      "denoise": 0.45,
+
       "model": [
         "70",
         0
       ],
       "positive": [
-        "68",
+        "77",
         0
       ],
       "negative": [
@@ -115,18 +99,20 @@
     },
     "class_type": "KSampler",
     "_meta": {
-      "title": "KSampler"
+      "title": "KSampler - Img2Img"
     }
   },
+
   "72": {
     "inputs": {
       "unet_name": "z_image_turbo-Q4_K_S.gguf"
     },
     "class_type": "UnetLoaderGGUF",
     "_meta": {
-      "title": "Unet Loader (GGUF)"
+      "title": "Load Z-Image Turbo"
     }
   },
+
   "73": {
     "inputs": {
       "vae_name": "ae.safetensors"
@@ -136,15 +122,17 @@
       "title": "Load VAE"
     }
   },
+
   "74": {
     "inputs": {
       "image": "example.png"
     },
     "class_type": "LoadImage",
     "_meta": {
-      "title": "Load Image"
+      "title": "Load Input Image"
     }
   },
+
   "75": {
     "inputs": {
       "pixels": [
@@ -158,7 +146,21 @@
     },
     "class_type": "VAEEncode",
     "_meta": {
-      "title": "VAE Encode"
+      "title": "Encode Input Image"
+    }
+  },
+
+  "77": {
+    "inputs": {
+      "text": "",
+      "clip": [
+        "64",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode - Prompt"
     }
   }
 }

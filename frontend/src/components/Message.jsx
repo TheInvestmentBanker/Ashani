@@ -13,6 +13,11 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CheckIcon from "@mui/icons-material/Check";
 import DownloadIcon from "@mui/icons-material/Download";
 
+
+/* =========================================================
+   CODE BLOCK
+   ========================================================= */
+
 function CodeBlock({
   inline,
   className,
@@ -23,12 +28,10 @@ function CodeBlock({
 
   const code = String(children).replace(/\n$/, "");
 
-  /*
-   * Inline code
-   *
-   * Example:
-   * Use `npm install`
-   */
+  /* =======================================================
+     INLINE CODE
+     ======================================================= */
+
   if (inline) {
     return (
       <Box
@@ -49,10 +52,10 @@ function CodeBlock({
     );
   }
 
+  /* =======================================================
+     COPY ENTIRE CODE BLOCK
+     ======================================================= */
 
-  /*
-   * Copy entire code block
-   */
   const copyCode = async () => {
     try {
       await navigator.clipboard.writeText(code);
@@ -70,62 +73,44 @@ function CodeBlock({
     }
   };
 
+  /* =======================================================
+     DETECT LANGUAGE
+     ======================================================= */
 
-  /*
-   * Detect language
-   *
-   * language-python
-   * language-javascript
-   * language-js
-   * etc.
-   */
   const language =
     className
       ?.replace("language-", "")
       ?.trim() || "Code";
 
-
   return (
     <Box
       sx={{
         my: 2,
-
         borderRadius: 2,
-
         overflow: "hidden",
-
         border: "1px solid",
-
         borderColor: "divider",
-
         backgroundColor:
           "rgba(0,0,0,0.35)",
       }}
     >
 
-      {/* =========================
+      {/* =================================================
           CODE HEADER
-         ========================= */}
+         ================================================= */}
 
       <Box
         sx={{
           display: "flex",
-
           alignItems: "center",
-
           justifyContent:
             "space-between",
-
           px: 1.5,
-
           py: 0.75,
-
           borderBottom:
             "1px solid",
-
           borderColor:
             "divider",
-
           backgroundColor:
             "rgba(255,255,255,0.04)",
         }}
@@ -135,10 +120,8 @@ function CodeBlock({
           variant="caption"
           sx={{
             fontWeight: 600,
-
             color:
               "text.secondary",
-
             textTransform:
               "none",
           }}
@@ -146,10 +129,9 @@ function CodeBlock({
           {language}
         </Typography>
 
-
-        {/* =========================
+        {/* ===============================================
             COPY BUTTON
-           ========================= */}
+           =============================================== */}
 
         <IconButton
           size="small"
@@ -169,7 +151,6 @@ function CodeBlock({
             },
           }}
         >
-
           {copied ? (
             <CheckIcon
               fontSize="small"
@@ -179,60 +160,53 @@ function CodeBlock({
               fontSize="small"
             />
           )}
-
         </IconButton>
 
       </Box>
 
-
-      {/* =========================
+      {/* =================================================
           CODE CONTENT
-         ========================= */}
+         ================================================= */}
 
       <Box
         component="pre"
         sx={{
           m: 0,
-
           p: 2,
-
           overflowX: "auto",
-
           fontFamily:
             '"JetBrains Mono", "Fira Code", Consolas, monospace',
-
           fontSize:
             "0.9rem",
-
           lineHeight: 1.6,
 
           "& code": {
             fontFamily:
               "inherit",
-
             background:
               "transparent",
-
             padding: 0,
-
             fontSize:
               "inherit",
           },
         }}
       >
-
         <code
           className={className}
           {...props}
         >
           {code}
         </code>
-
       </Box>
 
     </Box>
   );
 }
+
+
+/* =========================================================
+   MESSAGE
+   ========================================================= */
 
 function Message({
   role,
@@ -241,10 +215,17 @@ function Message({
   image_filename = null,
   webSources = [],
 }) {
+
   const isUser =
     role === "user";
 
+
+  /* =======================================================
+     DOWNLOAD GENERATED IMAGE
+     ======================================================= */
+
   const handleDownloadImage = () => {
+
     if (!image) {
       return;
     }
@@ -264,6 +245,7 @@ function Message({
 
     document.body.removeChild(link);
   };
+
 
   return (
     <Box
@@ -374,7 +356,6 @@ function Message({
               "action.hover",
 
             px: 0.6,
-
             py: 0.2,
 
             borderRadius: 1,
@@ -409,6 +390,73 @@ function Message({
         }}
       >
 
+        {/* =================================================
+            USER UPLOADED IMAGE
+            Small ChatGPT-style thumbnail
+           ================================================= */}
+
+        {isUser && image && (
+          <Box
+            sx={{
+              position: "relative",
+
+              width: {
+                xs: "150px",
+                sm: "180px",
+              },
+
+              maxWidth: "100%",
+
+              mb:
+                content
+                  ? 1.25
+                  : 0,
+
+              borderRadius: 1.75,
+
+              overflow: "hidden",
+
+              backgroundColor:
+                "rgba(0,0,0,0.12)",
+
+              border:
+                "1px solid",
+
+              borderColor:
+                "rgba(255,255,255,0.16)",
+            }}
+          >
+
+            <Box
+              component="img"
+              src={image}
+              alt={
+                image_filename ||
+                "Uploaded image"
+              }
+              sx={{
+                display: "block",
+
+                width: "100%",
+
+                height: "auto",
+
+                maxHeight: "180px",
+
+                objectFit: "contain",
+
+                borderRadius: 1.5,
+              }}
+            />
+
+          </Box>
+        )}
+
+
+        {/* =================================================
+            MESSAGE TEXT
+           ================================================= */}
+
         {content && (
           <ReactMarkdown
             remarkPlugins={[
@@ -422,36 +470,64 @@ function Message({
           </ReactMarkdown>
         )}
 
-        {image && (
+
+        {/* =================================================
+            ASSISTANT / GENERATED IMAGE
+
+            Keep generated images large.
+           ================================================= */}
+
+        {!isUser && image && (
           <Box
             sx={{
               position: "relative",
-              mt: content ? 1.5 : 0,
+
+              mt:
+                content
+                  ? 1.5
+                  : 0,
+
               mb:
                 webSources.length > 0
                   ? 1.5
                   : 0,
+
               overflow: "hidden",
+
               borderRadius: 2,
+
               border: "1px solid",
-              borderColor: "divider",
+
+              borderColor:
+                "divider",
+
               backgroundColor:
                 "background.default",
             }}
           >
+
             <Box
               component="img"
               src={image}
               alt="Generated by Ashani"
               sx={{
                 display: "block",
+
                 width: "100%",
+
                 maxWidth: "1536px",
+
                 height: "auto",
+
                 maxHeight: "80vh",
+
                 objectFit: "contain",
               }}
             />
+
+            {/* ===========================================
+                DOWNLOAD GENERATED IMAGE
+               =========================================== */}
 
             <IconButton
               onClick={
@@ -462,7 +538,9 @@ function Message({
               size="small"
               sx={{
                 position: "absolute",
+
                 right: 10,
+
                 bottom: 10,
 
                 backgroundColor:
@@ -480,29 +558,46 @@ function Message({
                 fontSize="small"
               />
             </IconButton>
+
           </Box>
         )}
+
+
+        {/* =================================================
+            WEB SOURCES
+           ================================================= */}
 
         {webSources.length > 0 && (
           <Box
             sx={{
               mt: 2,
+
               pt: 1.5,
-              borderTop: "1px solid",
-              borderColor: "divider",
+
+              borderTop:
+                "1px solid",
+
+              borderColor:
+                "divider",
             }}
           >
+
             <Typography
               variant="caption"
               sx={{
                 display: "block",
+
                 fontWeight: 600,
+
                 mb: 1,
-                color: "text.secondary",
+
+                color:
+                  "text.secondary",
               }}
             >
               Web sources
             </Typography>
+
 
             {webSources.map(
               (source, index) => (
@@ -514,8 +609,12 @@ function Message({
                   rel="noopener noreferrer"
                   sx={{
                     display: "block",
-                    textDecoration: "none",
+
+                    textDecoration:
+                      "none",
+
                     color: "inherit",
+
                     mb:
                       index ===
                       webSources.length - 1
@@ -538,10 +637,12 @@ function Message({
                     },
                   }}
                 >
+
                   <Typography
                     variant="body2"
                     sx={{
                       fontWeight: 600,
+
                       lineHeight: 1.35,
                     }}
                   >
@@ -553,22 +654,29 @@ function Message({
                     variant="caption"
                     sx={{
                       display: "block",
+
                       mt: 0.25,
+
                       color:
                         "text.secondary",
+
                       overflow:
                         "hidden",
+
                       textOverflow:
                         "ellipsis",
+
                       whiteSpace:
                         "nowrap",
                     }}
                   >
                     {source.url}
                   </Typography>
+
                 </Box>
               )
             )}
+
           </Box>
         )}
 

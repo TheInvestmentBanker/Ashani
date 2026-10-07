@@ -1,7 +1,7 @@
 {
   "9": {
     "inputs": {
-      "filename_prefix": "Super",
+      "filename_prefix": "Ashani_Text2Img",
       "images": [
         "67",
         0
@@ -12,6 +12,7 @@
       "title": "Save Image"
     }
   },
+
   "64": {
     "inputs": {
       "clip_name": "qwen_3_4b_fp4_mixed.safetensors",
@@ -23,6 +24,7 @@
       "title": "Load CLIP"
     }
   },
+
   "66": {
     "inputs": {
       "conditioning": [
@@ -35,6 +37,7 @@
       "title": "Conditioning Zero Out"
     }
   },
+
   "67": {
     "inputs": {
       "samples": [
@@ -51,9 +54,10 @@
       "title": "VAE Decode"
     }
   },
+
   "68": {
     "inputs": {
-      "text": "A Young beautiful Russian Women",
+      "text": "A beautiful young Russian woman",
       "clip": [
         "64",
         0
@@ -61,20 +65,22 @@
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "CLIP Text Encode (Prompt)"
+      "title": "CLIP Text Encode - Prompt"
     }
   },
+
   "69": {
     "inputs": {
-      "width": 1536,
-      "height": 864,
+      "width": 1024,
+      "height": 576,
       "batch_size": 1
     },
     "class_type": "EmptySD3LatentImage",
     "_meta": {
-      "title": "EmptySD3LatentImage"
+      "title": "Empty Latent Image"
     }
   },
+
   "70": {
     "inputs": {
       "shift": 3,
@@ -85,13 +91,14 @@
     },
     "class_type": "ModelSamplingAuraFlow",
     "_meta": {
-      "title": "ModelSamplingAuraFlow"
+      "title": "Model Sampling AuraFlow"
     }
   },
+
   "71": {
     "inputs": {
       "seed": 764215194390611,
-      "steps": 25,
+      "steps": 15,
       "cfg": 1,
       "sampler_name": "euler",
       "scheduler": "simple",
@@ -115,18 +122,20 @@
     },
     "class_type": "KSampler",
     "_meta": {
-      "title": "KSampler"
+      "title": "KSampler - Text2Img"
     }
   },
+
   "72": {
     "inputs": {
       "unet_name": "z_image_turbo-Q4_K_S.gguf"
     },
     "class_type": "UnetLoaderGGUF",
     "_meta": {
-      "title": "Unet Loader (GGUF)"
+      "title": "Load Z-Image Turbo"
     }
   },
+
   "73": {
     "inputs": {
       "vae_name": "ae.safetensors"
