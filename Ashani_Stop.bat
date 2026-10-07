@@ -1,17 +1,19 @@
+```bat
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
+
 title Ashani AI - Stop
 
 REM ============================================================
-REM  ASHANI AI SERVER STOPPER
+REM                    ASHANI AI SHUTDOWN
 REM
-REM  Stops:
-REM    1. Ashani Node/Express backend
-REM    2. Ollama server
-REM    3. SearXNG + Valkey Docker containers
+REM Stops:
+REM   1. Ashani Backend
+REM   2. Ollama
+REM   3. ComfyUI
+REM   4. SearXNG / Docker
+REM   5. Cloudflare Tunnel
 REM
-REM  The Cloudflare Tunnel is intentionally NOT stopped because
-REM  it is installed as a Windows service.
 REM ============================================================
 
 set "PROJECT_ROOT=%~dp0"
@@ -19,14 +21,18 @@ set "BACKEND_DIR=%PROJECT_ROOT%backend"
 set "SEARCH_DIR=%PROJECT_ROOT%search\searxng"
 
 set "PID_FILE=%BACKEND_DIR%\.ashani_backend.pid"
+
 set "API_PORT=5000"
 set "OLLAMA_PORT=11434"
+set "COMFYUI_PORT=8188"
 set "SEARXNG_PORT=8080"
+
+set "CLOUDFLARE_SERVICE=cloudflared"
 
 
 echo.
 echo ============================================================
-echo                     ASHANI AI SHUTDOWN
+echo                  ASHANI AI SHUTDOWN
 echo ============================================================
 echo.
 
@@ -35,7 +41,7 @@ REM ============================================================
 REM 1. STOP ASHANI BACKEND
 REM ============================================================
 
-echo [1/3] Stopping Ashani backend...
+echo [1/5] Stopping Ashani backend...
 echo.
 
 if exist "%PID_FILE%" (
@@ -61,9 +67,7 @@ if exist "%PID_FILE%" (
 )
 
 
-REM ------------------------------------------------------------
-REM Fallback: terminate any remaining process owning port 5000
-REM ------------------------------------------------------------
+REM Fallback: terminate process listening on port 5000
 
 powershell -NoProfile -Command ^
   "$c=Get-NetTCPConnection -LocalPort %API_PORT% -State Listen -ErrorAction SilentlyContinue; if($c){ $c | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue } }"
@@ -76,11 +80,10 @@ powershell -NoProfile -Command "try { Get-NetTCPConnection -LocalPort %API_PORT%
 
 if errorlevel 1 (
     echo [WARN] Something is still listening on port %API_PORT%.
-    echo       Check Task Manager if Ashani Backend remains active.
 ) else (
+    echo [ OK ] Backend stopped.
     echo [ OK ] Port %API_PORT% is free.
 )
-
 
 echo.
 
@@ -89,17 +92,18 @@ REM ============================================================
 REM 2. STOP OLLAMA
 REM ============================================================
 
-echo [2/3] Stopping Ollama...
+echo [2/5] Stopping Ollama...
 echo.
-
 
 powershell -NoProfile -Command "try { Get-NetTCPConnection -LocalPort %OLLAMA_PORT% -State Listen -ErrorAction Stop ^| Out-Null; exit 0 } catch { exit 1 }" >nul 2>&1
 
 if errorlevel 1 (
 
-    echo [ OK ] Ollama is not currently listening on port %OLLAMA_PORT%.
+    echo [ OK ] Ollama is already stopped.
 
 ) else (
+
+    echo [INFO] Terminating Ollama...
 
     taskkill /IM ollama.exe /T /F >nul 2>&1
 
@@ -109,77 +113,131 @@ if errorlevel 1 (
 
     if errorlevel 1 (
         echo [WARN] Ollama may still be running.
-        echo       If the Ollama desktop application is active, it may
-        echo       automatically restart its server.
     ) else (
         echo [ OK ] Ollama stopped.
-        echo [ OK ] GPU inference is no longer active.
+        echo [ OK ] GPU inference stopped.
     )
 
 )
 
+echo.
+
+
+REM ============================================================
+REM 3. STOP COMFYUI
+REM ============================================================
+
+echo [3/5] Stopping ComfyUI...
+echo.
+
+powershell -NoProfile -Command "try { Get-NetTCPConnection -LocalPort %COMFYUI_PORT% -State Listen -ErrorAction Stop ^| Out-Null; exit 0 } catch { exit 1 }" >nul 2>&1
+
+if errorlevel 1 (
+
+    echo [ OK ] ComfyUI is already stopped.
+
+) else (
+
+    echo [INFO] Finding ComfyUI process...
+
+    for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":%COMFYUI_PORT% .*LISTENING"') do (
+        echo [INFO] ComfyUI PID: %%P
+        taskkill /PID %%P /T /F >nul 2>&1
+    )
+
+    timeout /t 2 /nobreak >nul
+
+    powershell -NoProfile -Command "try { Get-NetTCPConnection -LocalPort %COMFYUI_PORT% -State Listen -ErrorAction Stop ^| Out-Null; exit 1 } catch { exit 0 }" >nul 2>&1
+
+    if errorlevel 1 (
+        echo [WARN] ComfyUI may still be running.
+    ) else (
+        echo [ OK ] ComfyUI stopped.
+        echo [ OK ] Image generation stopped.
+    )
+
+)
 
 echo.
 
 
 REM ============================================================
-REM 3. STOP SEARXNG / DOCKER
+REM 4. STOP SEARXNG / DOCKER
 REM ============================================================
 
-echo [3/3] Stopping SearXNG...
+echo [4/5] Stopping SearXNG...
 echo.
-
 
 if not exist "%SEARCH_DIR%\docker-compose.yml" (
 
-    echo [WARN] SearXNG docker-compose.yml was not found.
-    echo       Expected:
-    echo       %SEARCH_DIR%\docker-compose.yml
+    echo [WARN] docker-compose.yml was not found.
+    echo Expected:
+    echo %SEARCH_DIR%\docker-compose.yml
     goto DOCKER_DONE
 
 )
 
-
 cd /d "%SEARCH_DIR%"
-
 
 echo [INFO] Stopping SearXNG containers...
 
 docker compose down
 
 if errorlevel 1 (
-
     echo [WARN] Docker Compose could not stop SearXNG.
-    echo       Check Docker Desktop.
-
+    echo Check Docker Desktop.
 ) else (
-
     echo [ OK ] SearXNG containers stopped.
-
 )
 
 
 :DOCKER_DONE
 
-
-REM ============================================================
-REM VERIFY SEARXNG
-REM ============================================================
-
 timeout /t 1 /nobreak >nul
 
-
-curl.exe -s http://localhost:%SEARXNG_PORT%/search?q=test^&format=json >nul 2>&1
+curl.exe -s "http://localhost:%SEARXNG_PORT%/search?q=test&format=json" >nul 2>&1
 
 if not errorlevel 1 (
+    echo [WARN] SearXNG is still responding.
+) else (
+    echo [ OK ] SearXNG is offline.
+)
 
-    echo [WARN] SearXNG is still responding on port %SEARXNG_PORT%.
+echo.
+
+
+REM ============================================================
+REM 5. STOP CLOUDFLARE TUNNEL
+REM ============================================================
+
+echo [5/5] Stopping Cloudflare Tunnel...
+echo.
+
+sc query "%CLOUDFLARE_SERVICE%" | findstr /I "RUNNING" >nul
+
+if errorlevel 1 (
+
+    echo [ OK ] Cloudflare Tunnel is already stopped.
 
 ) else (
 
-    echo [ OK ] SearXNG is offline.
+    echo [INFO] Stopping Cloudflare service...
+
+    net stop "%CLOUDFLARE_SERVICE%" >nul 2>&1
+
+    timeout /t 2 /nobreak >nul
+
+    sc query "%CLOUDFLARE_SERVICE%" | findstr /I "STOPPED" >nul
+
+    if errorlevel 1 (
+        echo [WARN] Cloudflare Tunnel may still be running.
+    ) else (
+        echo [ OK ] Cloudflare Tunnel stopped.
+    )
 
 )
+
+echo.
 
 
 REM ============================================================
@@ -191,16 +249,25 @@ echo ============================================================
 echo                    ASHANI IS STOPPED
 echo ============================================================
 echo.
-echo  Backend:       STOPPED
-echo  Ollama:        STOPPED/IDLE
-echo  GPU inference: STOPPED
-echo  SearXNG:       STOPPED
-echo  Docker search: STOPPED
-echo  Cloudflare:    Still running as a Windows service
+echo  Backend:          STOPPED
+echo  Ollama:           STOPPED
+echo  GPU inference:    STOPPED
+echo  ComfyUI:          STOPPED
+echo  Image generation: STOPPED
+echo  SearXNG:           STOPPED
+echo  Docker search:    STOPPED
+echo  Cloudflare:       STOPPED
 echo.
-echo  Run Ashani_Start.bat when you want Ashani online.
+echo  Public API:
+echo  https://api.ashani.online
+echo  is now OFFLINE.
+echo.
+echo  Run Ashani_Start.bat to start Ashani manually.
+echo  Windows will also start Ashani automatically at boot.
 echo ============================================================
 echo.
 
 pause
 endlocal
+exit /b 0
+```
