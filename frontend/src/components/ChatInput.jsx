@@ -16,48 +16,82 @@ import PsychologyOutlinedIcon from "@mui/icons-material/PsychologyOutlined";
 import MicIcon from "@mui/icons-material/Mic";
 import StopIcon from "@mui/icons-material/Stop";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
+import CloseIcon from "@mui/icons-material/Close";
+
 
 function ChatInput({
   onSend,
   disabled = false,
 }) {
+
+  // ============================================================
+  // STATE
+  // ============================================================
+
   const [message, setMessage] = useState("");
   const [listening, setListening] = useState(false);
 
-  const [menuAnchor, setMenuAnchor] =
-    useState(null);
+  const [menuAnchor, setMenuAnchor] = useState(null);
 
-  const [imageMode, setImageMode] =
-  useState(false);
+  const [imageMode, setImageMode] = useState(false);
 
-const [imageResolution, setImageResolution] =
-  useState("SD");
+  const [imageResolution, setImageResolution] = useState("SD");
 
-const [resolutionAnchor, setResolutionAnchor] =
-  useState(null);
+  const [resolutionAnchor, setResolutionAnchor] = useState(null);
 
-const [thinkMode, setThinkMode] =
-  useState(false);
+  const [thinkMode, setThinkMode] = useState(false);
 
-  const [selectedImage, setSelectedImage] =
-    useState(null);
+  const [selectedImage, setSelectedImage] = useState(null);
 
-  const recognitionRef =
-    useRef(null);
+  const [imagePreview, setImagePreview] = useState(null);
 
-  const textareaRef =
-    useRef(null);
 
-  const fileInputRef =
-    useRef(null);
+  // ============================================================
+  // REFS
+  // ============================================================
 
-  /*
-  |--------------------------------------------------------------------------
-  | VOICE RECOGNITION
-  |--------------------------------------------------------------------------
-  */
+  const recognitionRef = useRef(null);
+  const textareaRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+
+  // ============================================================
+  // IMAGE PREVIEW
+  // ============================================================
+
+
+
+
+  // ============================================================
+  // AUTO RESIZE TEXTAREA
+  // ============================================================
 
   useEffect(() => {
+
+    const textarea = textareaRef.current;
+
+    if (!textarea) {
+      return;
+    }
+
+    textarea.style.height = "auto";
+
+    const maxHeight = 150;
+
+    textarea.style.height = `${Math.min(
+      textarea.scrollHeight,
+      maxHeight
+    )}px`;
+
+  }, [message]);
+
+
+  // ============================================================
+  // VOICE RECOGNITION
+  // ============================================================
+
+  useEffect(() => {
+
     const SpeechRecognition =
       window.SpeechRecognition ||
       window.webkitSpeechRecognition;
@@ -74,6 +108,7 @@ const [thinkMode, setThinkMode] =
     recognition.lang = "en-US";
 
     recognition.onresult = (event) => {
+
       let finalTranscript = "";
 
       for (
@@ -81,14 +116,20 @@ const [thinkMode, setThinkMode] =
         i < event.results.length;
         i++
       ) {
+
         if (event.results[i].isFinal) {
+
           finalTranscript +=
             event.results[i][0].transcript;
+
         }
+
       }
 
       if (finalTranscript) {
+
         setMessage((previous) => {
+
           const separator =
             previous &&
             !previous.endsWith(" ")
@@ -100,45 +141,60 @@ const [thinkMode, setThinkMode] =
             separator +
             finalTranscript
           );
+
         });
+
       }
+
     };
+
 
     recognition.onstart = () => {
       setListening(true);
     };
 
+
     recognition.onend = () => {
       setListening(false);
     };
 
+
     recognition.onerror = (event) => {
+
       console.error(
         "Speech recognition error:",
         event.error
       );
 
       setListening(false);
+
     };
+
 
     recognitionRef.current =
       recognition;
 
+
     return () => {
+
       recognition.stop();
+
       recognitionRef.current = null;
+
     };
+
   }, []);
 
-  /*
-  |--------------------------------------------------------------------------
-  | SUBMIT
-  |--------------------------------------------------------------------------
-  */
+
+  // ============================================================
+  // SUBMIT
+  // ============================================================
 
   const handleSubmit = async () => {
+
     const trimmedMessage =
       message.trim();
+
 
     if (
       (!trimmedMessage &&
@@ -148,139 +204,173 @@ const [thinkMode, setThinkMode] =
       return;
     }
 
+
     if (listening) {
       recognitionRef.current?.stop();
     }
 
+
     let imageData = null;
 
-    /*
-     * Convert selected image into a
-     * base64 data URL.
-     */
+
+    // ----------------------------------------------------------
+    // Convert selected image into Base64 data URL
+    // ----------------------------------------------------------
 
     if (selectedImage) {
+
       try {
+
         imageData =
           await new Promise(
             (resolve, reject) => {
+
               const reader =
                 new FileReader();
 
+
               reader.onload = () => {
+
                 resolve(
                   reader.result
                 );
+
               };
 
+
               reader.onerror = () => {
+
                 reject(
                   new Error(
                     "Failed to read the selected image."
                   )
                 );
+
               };
+
 
               reader.readAsDataURL(
                 selectedImage
               );
+
             }
           );
+
       } catch (error) {
+
         console.error(
           "Image reading failed:",
           error
         );
 
         return;
+
       }
+
     }
 
-    /*
-     * Send message + generation options
-     * to ChatPage.
-     *
-     * imageMode = true
-     *   -> Text-to-Image
-     *   -> Image-to-Image if image exists
-     *
-     * imageMode = false
-     *   -> Normal chat / image attachment
-     */
+
+    // ----------------------------------------------------------
+    // Send message + generation options
+    // ----------------------------------------------------------
 
     onSend(trimmedMessage, {
-  think: thinkMode,
-  mode: imageMode
-    ? "image"
-    : "chat",
-  image: imageData,
-  resolution: imageResolution,
-});
 
-    /*
-     * Reset message and uploaded image.
-     *
-     * Image mode itself remains selected,
-     * just like Think mode.
-     */
+      think: thinkMode,
+
+      mode: imageMode
+        ? "image"
+        : "chat",
+
+      image: imageData,
+
+      resolution: imageResolution,
+
+    });
+
+
+    // ----------------------------------------------------------
+    // Reset message + image
+    // ----------------------------------------------------------
 
     setMessage("");
+
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview);
+    }
+
     setSelectedImage(null);
+    setImagePreview(null);
+
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | KEYBOARD
-  |--------------------------------------------------------------------------
-  */
+
+  // ============================================================
+  // KEYBOARD
+  // ============================================================
 
   const handleKeyDown = (event) => {
+
     if (
       event.key === "Enter" &&
       !event.shiftKey
     ) {
+
       event.preventDefault();
+
       handleSubmit();
+
     }
+
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | VOICE
-  |--------------------------------------------------------------------------
-  */
+
+  // ============================================================
+  // VOICE
+  // ============================================================
 
   const handleVoice = () => {
+
     if (disabled) {
       return;
     }
 
+
     const recognition =
       recognitionRef.current;
 
+
     if (!recognition) {
+
       alert(
         "Voice input is not supported by this browser."
       );
 
       return;
+
     }
+
 
     if (listening) {
+
       recognition.stop();
+
       return;
+
     }
 
+
     recognition.start();
+
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | ADD MENU
-  |--------------------------------------------------------------------------
-  */
+
+  // ============================================================
+  // ADD MENU
+  // ============================================================
 
   const handleAddClick = (event) => {
+
     if (disabled) {
       return;
     }
@@ -288,19 +378,23 @@ const [thinkMode, setThinkMode] =
     setMenuAnchor(
       event.currentTarget
     );
+
   };
+
 
   const handleMenuClose = () => {
+
     setMenuAnchor(null);
+
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | IMAGE GENERATION MODE
-  |--------------------------------------------------------------------------
-  */
+
+  // ============================================================
+  // IMAGE GENERATION MODE
+  // ============================================================
 
   const handleImageModeToggle = () => {
+
     if (disabled) {
       return;
     }
@@ -308,40 +402,46 @@ const [thinkMode, setThinkMode] =
     setImageMode(
       (previous) => !previous
     );
+
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | IMAGE UPLOAD
-  |--------------------------------------------------------------------------
-  */
+
+  // ============================================================
+  // IMAGE UPLOAD
+  // ============================================================
 
   const handleUploadImage = () => {
+
     setMenuAnchor(null);
 
     fileInputRef.current?.click();
+
   };
+
 
   const handleImageChange = (
     event
   ) => {
+
     const file =
       event.target.files?.[0];
+
 
     if (!file) {
       return;
     }
 
-    /*
-     * Make sure the selected file
-     * is actually an image.
-     */
+
+    // ----------------------------------------------------------
+    // Validate image
+    // ----------------------------------------------------------
 
     if (
       !file.type.startsWith(
         "image/"
       )
     ) {
+
       console.error(
         "Selected file is not an image."
       );
@@ -349,34 +449,50 @@ const [thinkMode, setThinkMode] =
       event.target.value = "";
 
       return;
+
     }
 
+
+    const previewUrl = URL.createObjectURL(file);
+
     setSelectedImage(file);
+    setImagePreview(previewUrl);
 
-    /*
-     * IMPORTANT:
-     * Uploading an image does NOT
-     * automatically enable Image mode.
-     *
-     * This allows normal image
-     * attachments independently.
-     */
 
-    /*
-     * Reset input value so the same
-     * image can be selected again later.
-     */
+    // ----------------------------------------------------------
+    // Uploading an image does NOT
+    // automatically enable Image mode.
+    // ----------------------------------------------------------
+
+    // Reset input so the same image
+    // can be selected again later.
 
     event.target.value = "";
+
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | THINK MODE
-  |--------------------------------------------------------------------------
-  */
+
+  // ============================================================
+  // REMOVE IMAGE
+  // ============================================================
+
+  const handleRemoveImage = () => {
+
+  if (imagePreview) {
+    URL.revokeObjectURL(imagePreview);
+  }
+
+  setSelectedImage(null);
+  setImagePreview(null);
+};
+
+
+  // ============================================================
+  // THINK MODE
+  // ============================================================
 
   const handleThinkToggle = () => {
+
     if (disabled) {
       return;
     }
@@ -384,15 +500,23 @@ const [thinkMode, setThinkMode] =
     setThinkMode(
       (previous) => !previous
     );
+
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | RENDER
-  |--------------------------------------------------------------------------
-  */
+
+  // ============================================================
+  // RENDER
+  // ============================================================
+
+  const hasContent =
+    Boolean(
+      message.trim() ||
+      selectedImage
+    );
+
 
   return (
+
     <Box
       sx={{
         width: "100%",
@@ -404,66 +528,40 @@ const [thinkMode, setThinkMode] =
           "transparent",
       }}
     >
+
       <Box
         component="form"
+
         onSubmit={(event) => {
+
           event.preventDefault();
+
           handleSubmit();
+
         }}
+
         sx={{
+
           width: "100%",
+
           maxWidth: 820,
+
           mx: "auto",
 
-          display: "grid",
+          display: "flex",
 
-          /*
-           * Desktop:
-           *
-           * + | image | think | textarea | mic | send
-           *
-           * Mobile:
-           *
-           * textarea
-           * + | image | think | mic | send
-           */
-
-          gridTemplateColumns: {
-  xs: "auto auto auto auto auto auto",
-  sm: "auto auto auto auto minmax(0, 1fr) auto auto",
-},
-
-          gridTemplateRows: {
-            xs: "auto auto",
-            sm: "auto",
-          },
-
-          alignItems: "center",
-
-          minHeight: {
-            xs: 88,
-            sm: 64,
-          },
-
-          px: {
-            xs: 1,
-            sm: 1,
-          },
-
-          py: {
-            xs: 0.75,
-            sm: 0.75,
-          },
+          flexDirection: "column",
 
           border: "1px solid",
 
-          borderColor: listening
-            ? "primary.main"
-            : "divider",
+          borderColor:
+            listening
+              ? "primary.main"
+              : "divider",
 
           borderRadius: {
             xs: "24px",
-            sm: "34px",
+            sm: "28px",
           },
 
           backgroundColor:
@@ -476,598 +574,936 @@ const [thinkMode, setThinkMode] =
             "blur(18px)",
 
           boxShadow: {
-            xs: "0 8px 30px rgba(0, 0, 0, 0.22)",
-            sm: "0 8px 35px rgba(0, 0, 0, 0.18)",
+            xs:
+              "0 8px 30px rgba(0,0,0,0.22)",
+
+            sm:
+              "0 8px 35px rgba(0,0,0,0.18)",
           },
 
           transition:
-            "border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease",
+            "border-color 0.2s ease, box-shadow 0.2s ease",
 
           "&:hover": {
+
             borderColor:
               "text.secondary",
+
           },
 
           "&:focus-within": {
+
             borderColor:
               "primary.main",
 
-            boxShadow: {
-              xs: "0 8px 32px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(139, 92, 246, 0.12)",
+            boxShadow:
+              "0 8px 40px rgba(0,0,0,0.25), 0 0 0 1px rgba(139,92,246,0.12)",
 
-              sm: "0 8px 40px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(139, 92, 246, 0.12)",
-            },
-
-            transform:
-              "translateY(-1px)",
           },
+
         }}
       >
-        {/* =================================================
-            MESSAGE
-           ================================================= */}
+
+        {/* =====================================================
+            IMAGE PREVIEW
+            ===================================================== */}
+
+        {selectedImage && imagePreview && (
+
+          <Box
+            sx={{
+              px: 1.5,
+              pt: 1.5,
+              pb: 0.5,
+
+              display: "flex",
+
+              alignItems: "flex-start",
+
+            }}
+          >
+
+            <Box
+              sx={{
+                position: "relative",
+
+                width: {
+                  xs: 72,
+                  sm: 84,
+                },
+
+                height: {
+                  xs: 72,
+                  sm: 84,
+                },
+
+                borderRadius: "14px",
+
+                overflow: "hidden",
+
+                border: "1px solid",
+
+                borderColor:
+                  "divider",
+
+                backgroundColor:
+                  "action.hover",
+
+                boxShadow:
+                  "0 4px 14px rgba(0,0,0,0.18)",
+              }}
+            >
+
+              <Box
+                component="img"
+
+                src={imagePreview}
+
+                alt="Uploaded image"
+
+                sx={{
+                  width: "100%",
+
+                  height: "100%",
+
+                  objectFit: "cover",
+
+                  display: "block",
+                }}
+              />
+
+
+              {/* REMOVE IMAGE */}
+
+              <IconButton
+                type="button"
+
+                onClick={
+                  handleRemoveImage
+                }
+
+                disabled={disabled}
+
+                size="small"
+
+                sx={{
+                  position: "absolute",
+
+                  top: 5,
+
+                  right: 5,
+
+                  width: 24,
+
+                  height: 24,
+
+                  p: 0,
+
+                  color: "#fff",
+
+                  backgroundColor:
+                    "rgba(0,0,0,0.65)",
+
+                  backdropFilter:
+                    "blur(6px)",
+
+                  "&:hover": {
+                    backgroundColor:
+                      "rgba(0,0,0,0.85)",
+                  },
+                }}
+              >
+
+                <CloseIcon
+                  sx={{
+                    fontSize: 15,
+                  }}
+                />
+
+              </IconButton>
+
+            </Box>
+
+          </Box>
+
+        )}
+
+
+        {/* =====================================================
+            MESSAGE AREA
+            ===================================================== */}
 
         <Box
-          ref={textareaRef}
-          component="textarea"
-          value={message}
-          onChange={(event) =>
-            setMessage(
-              event.target.value
-            )
-          }
-          onKeyDown={handleKeyDown}
-          disabled={disabled}
-          placeholder="Ask something unexpected..."
-          rows={1}
           sx={{
-            /*
-             * Mobile:
-             * full-width first row
-             *
-             * Desktop:
-             * fourth grid column
-             */
-
-            gridColumn: {
-  xs: "1 / -1",
-  sm: "5",
-},
-
-            gridRow: {
-              xs: "1",
-              sm: "1",
-            },
-
-            width: "100%",
-
-            resize: "none",
-
-            border: "none",
-
-            outline: "none",
-
-            background:
-              "transparent",
-
-            color:
-              "text.primary",
-
-            fontFamily:
-              "inherit",
-
-            fontSize: {
-              xs: "0.95rem",
-              sm: "1rem",
-            },
-
-            lineHeight: 1.5,
-
-            mx: {
-              xs: 0,
-              sm: 1,
-            },
-
-            py: {
-              xs: 0.5,
-              sm: 1,
-            },
-
             px: {
-              xs: 0.5,
-              sm: 0,
+              xs: 1.5,
+              sm: 2,
             },
 
-            minHeight: {
-              xs: "32px",
-              sm: "24px",
-            },
+            pt: selectedImage
+              ? 0.5
+              : 1.25,
 
-            maxHeight: "140px",
-
-            "&::placeholder": {
-              color:
-                "text.secondary",
-
-              opacity: 0.9,
-            },
+            pb: 0.5,
           }}
-        />
+        >
 
-        {/* =================================================
-            ADD / UPLOAD
-           ================================================= */}
+          <Box
+            ref={textareaRef}
 
-        <Tooltip title="Add files and tools">
-          <IconButton
-            type="button"
-            size="medium"
-            onClick={handleAddClick}
+            component="textarea"
+
+            value={message}
+
+            onChange={(event) =>
+              setMessage(
+                event.target.value
+              )
+            }
+
+            onKeyDown={handleKeyDown}
+
             disabled={disabled}
+
+            placeholder="Ask something unexpected..."
+
+            rows={1}
+
             sx={{
-              gridColumn: {
-                xs: "1",
-                sm: "1",
-              },
+              display: "block",
 
-              gridRow: {
-                xs: "2",
-                sm: "1",
-              },
+              width: "100%",
 
-              justifySelf: {
-                xs: "start",
-                sm: "center",
-              },
+              resize: "none",
 
-              width: {
-                xs: 38,
-                sm: 42,
-              },
+              overflowY: "auto",
 
-              height: {
-                xs: 38,
-                sm: 42,
-              },
+              border: "none",
 
-              flexShrink: 0,
+              outline: "none",
+
+              background:
+                "transparent",
 
               color:
-                "text.secondary",
+                "text.primary",
 
-              "&:hover": {
-                backgroundColor:
-                  "action.hover",
+              fontFamily:
+                "inherit",
+
+              fontSize: {
+                xs: "0.95rem",
+                sm: "1rem",
+              },
+
+              lineHeight: 1.55,
+
+              minHeight: "28px",
+
+              maxHeight: "150px",
+
+              py: 0.5,
+
+              "&::placeholder": {
 
                 color:
-                  "text.primary",
-              },
-            }}
-          >
-            <AddIcon />
-          </IconButton>
-        </Tooltip>
+                  "text.secondary",
 
-        <Menu
-          anchorEl={menuAnchor}
-          open={Boolean(menuAnchor)}
-          onClose={handleMenuClose}
-          anchorOrigin={{
-            vertical: "top",
-            horizontal: "left",
-          }}
-          transformOrigin={{
-            vertical: "bottom",
-            horizontal: "left",
-          }}
-        >
-          <MenuItem
-            onClick={
-              handleUploadImage
-            }
-          >
-            <ListItemIcon>
-              <ImageOutlinedIcon
-                fontSize="small"
-              />
-            </ListItemIcon>
+                opacity: 0.85,
 
-            <Typography variant="body2">
-              Upload image
-            </Typography>
-          </MenuItem>
-        </Menu>
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          hidden
-          onChange={
-            handleImageChange
-          }
-        />
-
-        {/* =================================================
-            IMAGE GENERATION
-           ================================================= */}
-
-        <Tooltip
-          title={
-            imageMode
-              ? "Image generation enabled"
-              : "Generate an image"
-          }
-        >
-          <IconButton
-            type="button"
-            size="medium"
-            onClick={
-              handleImageModeToggle
-            }
-            disabled={disabled}
-            sx={{
-              gridColumn: {
-  xs: "2",
-  sm: "2",
-},
-
-              gridRow: {
-                xs: "2",
-                sm: "1",
               },
 
-              width: {
-                xs: 38,
-                sm: 42,
+              "&::-webkit-scrollbar": {
+                width: "5px",
               },
 
-              height: {
-                xs: 38,
-                sm: 42,
-              },
+              "&::-webkit-scrollbar-thumb": {
 
-              flexShrink: 0,
-
-              borderRadius: "50%",
-
-              color: imageMode
-                ? "primary.main"
-                : "text.secondary",
-
-              backgroundColor:
-                imageMode
-                  ? "action.selected"
-                  : "transparent",
-
-              "&:hover": {
                 backgroundColor:
-                  "action.hover",
+                  "rgba(128,128,128,0.35)",
+
+                borderRadius: "10px",
+
               },
             }}
-          >
-            <ImageOutlinedIcon />
-          </IconButton>
-        </Tooltip>
+          />
 
-        {/* =================================================
-    IMAGE RESOLUTION
-   ================================================= */}
+        </Box>
 
-{imageMode && (
-  <>
-    <Tooltip title="Image resolution">
-      <IconButton
-        type="button"
-        size="small"
-        onClick={(event) =>
-          setResolutionAnchor(
-            event.currentTarget
-          )
-        }
-        disabled={disabled}
-        sx={{
-          gridColumn: {
-            xs: "3",
-            sm: "3",
-          },
 
-          gridRow: {
-            xs: "2",
-            sm: "1",
-          },
+        {/* =====================================================
+            BOTTOM TOOLBAR
+            ===================================================== */}
 
-          minWidth: {
-            xs: 42,
-            sm: 48,
-          },
-
-          height: {
-            xs: 34,
-            sm: 38,
-          },
-
-          px: 1,
-
-          borderRadius: "18px",
-
-          color:
-            "text.secondary",
-
-          backgroundColor:
-            "transparent",
-
-          "&:hover": {
-            backgroundColor:
-              "action.hover",
-          },
-        }}
-      >
-        <Typography
-          variant="caption"
+        <Box
           sx={{
-            fontWeight: 700,
-            fontSize: "0.72rem",
+
+            display: "flex",
+
+            alignItems: "center",
+
+            justifyContent:
+              "space-between",
+
+            gap: 0.5,
+
+            px: {
+              xs: 1,
+              sm: 1.25,
+            },
+
+            pb: {
+              xs: 0.9,
+              sm: 1,
+            },
+
           }}
         >
-          {imageResolution}
-        </Typography>
-      </IconButton>
-    </Tooltip>
 
-    <Menu
-      anchorEl={resolutionAnchor}
-      open={Boolean(resolutionAnchor)}
-      onClose={() =>
-        setResolutionAnchor(null)
-      }
-      anchorOrigin={{
-        vertical: "top",
-        horizontal: "center",
-      }}
-      transformOrigin={{
-        vertical: "bottom",
-        horizontal: "center",
-      }}
-    >
-      {[
-  {
-    label: "HD",
-    resolution: "HD",
-  },
-  {
-    label: "SD",
-    resolution: "SD",
-  },
-  {
-    label: "LD",
-    resolution: "LD",
-  },
-].map((option) => (
-        <MenuItem
-          key={option.resolution}
-          selected={
-            imageResolution ===
-            option.resolution
-          }
-          onClick={() => {
-            setImageResolution(
-              option.resolution
-            );
 
-            setResolutionAnchor(
-              null
-            );
-          }}
-        >
-          <Typography variant="body2">
-            {option.label}
-          </Typography>
-        </MenuItem>
-      ))}
-    </Menu>
-  </>
-)}
+          {/* LEFT CONTROLS */}
 
-{/* =================================================
-    THINK
-   ================================================= */}
-
-        <Tooltip
-          title={
-            thinkMode
-              ? "Heavy reasoning enabled"
-              : "Ask Ashani to think deeply"
-          }
-        >
-          <IconButton
-            type="button"
-            size="medium"
-            onClick={
-              handleThinkToggle
-            }
-            disabled={disabled}
+          <Box
             sx={{
-              gridColumn: {
-  xs: "4",
-  sm: "4",
-},
+              display: "flex",
 
-              gridRow: {
-                xs: "2",
-                sm: "1",
+              alignItems: "center",
+
+              gap: {
+                xs: 0.25,
+                sm: 0.5,
               },
 
-              width: {
-                xs: 38,
-                sm: 42,
-              },
-
-              height: {
-                xs: 38,
-                sm: 42,
-              },
-
-              flexShrink: 0,
-
-              borderRadius: "50%",
-
-              color: thinkMode
-                ? "primary.main"
-                : "text.secondary",
-
-              backgroundColor:
-                thinkMode
-                  ? "action.selected"
-                  : "transparent",
-
-              "&:hover": {
-                backgroundColor:
-                  "action.hover",
-              },
+              minWidth: 0,
             }}
           >
-            <PsychologyOutlinedIcon />
-          </IconButton>
-        </Tooltip>
 
-        {/* =================================================
-            VOICE
-           ================================================= */}
 
-        <Tooltip
-          title={
-            listening
-              ? "Stop listening"
-              : "Voice input"
-          }
-        >
-          <IconButton
-            type="button"
-            size="medium"
-            onClick={handleVoice}
-            disabled={disabled}
-            sx={{
-              gridColumn: {
-  xs: "5",
-  sm: "6",
-},
+            {/* ADD */}
 
-              gridRow: {
-                xs: "2",
-                sm: "1",
-              },
+            <Tooltip
+              title="Add files and tools"
+            >
 
-              width: {
-                xs: 38,
-                sm: 42,
-              },
+              <IconButton
 
-              height: {
-                xs: 38,
-                sm: 42,
-              },
+                type="button"
 
-              flexShrink: 0,
+                size="medium"
 
-              color: listening
-                ? "primary.main"
-                : "text.secondary",
+                onClick={
+                  handleAddClick
+                }
 
-              backgroundColor:
-                listening
-                  ? "action.hover"
-                  : "transparent",
+                disabled={disabled}
 
-              borderRadius: "50%",
+                sx={{
+                  width: 40,
 
-              "&:hover": {
-                backgroundColor:
-                  "action.hover",
-              },
-            }}
-          >
-            {listening ? (
-              <StopIcon />
-            ) : (
-              <MicIcon />
+                  height: 40,
+
+                  color:
+                    "text.secondary",
+
+                  "&:hover": {
+
+                    backgroundColor:
+                      "action.hover",
+
+                    color:
+                      "text.primary",
+
+                  },
+                }}
+              >
+
+                <AddIcon />
+
+              </IconButton>
+
+            </Tooltip>
+
+
+            {/* ADD MENU */}
+
+            <Menu
+
+              anchorEl={menuAnchor}
+
+              open={
+                Boolean(menuAnchor)
+              }
+
+              onClose={
+                handleMenuClose
+              }
+
+              anchorOrigin={{
+                vertical: "top",
+                horizontal: "left",
+              }}
+
+              transformOrigin={{
+                vertical: "bottom",
+                horizontal: "left",
+              }}
+
+              slotProps={{
+                paper: {
+                  sx: {
+
+                    mt: -1,
+
+                    minWidth: 190,
+
+                    borderRadius: "14px",
+
+                    backgroundColor:
+                      "background.paper",
+
+                    backgroundImage:
+                      "none",
+
+                    border: "1px solid",
+
+                    borderColor:
+                      "divider",
+
+                    boxShadow:
+                      "0 12px 35px rgba(0,0,0,0.35)",
+
+                    backdropFilter:
+                      "blur(20px)",
+
+                    overflow: "hidden",
+
+                  },
+                },
+              }}
+            >
+
+              <MenuItem
+                onClick={
+                  handleUploadImage
+                }
+
+                sx={{
+                  borderRadius:
+                    "10px",
+
+                  mx: 0.5,
+
+                  my: 0.25,
+
+                  py: 1,
+
+                  "&:hover": {
+                    backgroundColor:
+                      "action.hover",
+                  },
+                }}
+              >
+
+                <ListItemIcon>
+
+                  <ImageOutlinedIcon
+                    fontSize="small"
+                  />
+
+                </ListItemIcon>
+
+                <Typography
+                  variant="body2"
+                >
+                  Upload image
+                </Typography>
+
+              </MenuItem>
+
+            </Menu>
+
+
+            {/* HIDDEN FILE INPUT */}
+
+            <input
+
+              ref={fileInputRef}
+
+              type="file"
+
+              accept="image/*"
+
+              hidden
+
+              onChange={
+                handleImageChange
+              }
+
+            />
+
+
+            {/* IMAGE GENERATION */}
+
+            <Tooltip
+              title={
+                imageMode
+                  ? "Image generation enabled"
+                  : "Generate an image"
+              }
+            >
+
+              <IconButton
+
+                type="button"
+
+                size="medium"
+
+                onClick={
+                  handleImageModeToggle
+                }
+
+                disabled={disabled}
+
+                sx={{
+
+                  width: 40,
+
+                  height: 40,
+
+                  color:
+                    imageMode
+                      ? "primary.main"
+                      : "text.secondary",
+
+                  backgroundColor:
+                    imageMode
+                      ? "action.selected"
+                      : "transparent",
+
+                  "&:hover": {
+
+                    backgroundColor:
+                      "action.hover",
+
+                  },
+
+                }}
+              >
+
+                <ImageOutlinedIcon />
+
+              </IconButton>
+
+            </Tooltip>
+
+
+            {/* IMAGE RESOLUTION */}
+
+            {imageMode && (
+
+              <>
+
+                <Tooltip
+                  title="Image resolution"
+                >
+
+                  <IconButton
+
+                    type="button"
+
+                    size="small"
+
+                    onClick={(event) =>
+                      setResolutionAnchor(
+                        event.currentTarget
+                      )
+                    }
+
+                    disabled={disabled}
+
+                    sx={{
+
+                      minWidth: 44,
+
+                      height: 34,
+
+                      px: 1,
+
+                      borderRadius:
+                        "17px",
+
+                      color:
+                        "text.secondary",
+
+                      "&:hover": {
+
+                        backgroundColor:
+                          "action.hover",
+
+                      },
+
+                    }}
+                  >
+
+                    <Typography
+
+                      variant="caption"
+
+                      sx={{
+                        fontWeight: 700,
+                        fontSize: "0.72rem",
+                      }}
+                    >
+                      {imageResolution}
+                    </Typography>
+
+                  </IconButton>
+
+                </Tooltip>
+
+
+                <Menu
+
+                  anchorEl={
+                    resolutionAnchor
+                  }
+
+                  open={
+                    Boolean(
+                      resolutionAnchor
+                    )
+                  }
+
+                  onClose={() =>
+                    setResolutionAnchor(
+                      null
+                    )
+                  }
+
+                  anchorOrigin={{
+                    vertical: "top",
+                    horizontal: "center",
+                  }}
+
+                  transformOrigin={{
+                    vertical: "bottom",
+                    horizontal: "center",
+                  }}
+
+                  slotProps={{
+                    paper: {
+                      sx: {
+
+                        mt: -1,
+
+                        borderRadius:
+                          "14px",
+
+                        backgroundColor:
+                          "background.paper",
+
+                        backgroundImage:
+                          "none",
+
+                        border: "1px solid",
+
+                        borderColor:
+                          "divider",
+
+                        boxShadow:
+                          "0 12px 35px rgba(0,0,0,0.35)",
+
+                      },
+                    },
+                  }}
+                >
+
+                  {[
+                    {
+                      label: "HD",
+                      resolution: "HD",
+                    },
+                    {
+                      label: "SD",
+                      resolution: "SD",
+                    },
+                    {
+                      label: "LD",
+                      resolution: "LD",
+                    },
+                  ].map(
+                    (option) => (
+
+                      <MenuItem
+
+                        key={
+                          option.resolution
+                        }
+
+                        selected={
+                          imageResolution ===
+                          option.resolution
+                        }
+
+                        onClick={() => {
+
+                          setImageResolution(
+                            option.resolution
+                          );
+
+                          setResolutionAnchor(
+                            null
+                          );
+
+                        }}
+
+                        sx={{
+                          borderRadius:
+                            "10px",
+
+                          mx: 0.5,
+
+                          my: 0.25,
+
+                          "&:hover": {
+
+                            backgroundColor:
+                              "action.hover",
+
+                          },
+                        }}
+                      >
+
+                        <Typography
+                          variant="body2"
+                        >
+                          {option.label}
+                        </Typography>
+
+                      </MenuItem>
+
+                    )
+                  )}
+
+                </Menu>
+
+              </>
+
             )}
-          </IconButton>
-        </Tooltip>
 
-        {/* =================================================
-            SEND
-           ================================================= */}
 
-        <Tooltip title="Send">
-          <IconButton
-            type="submit"
-            disabled={
-              (!message.trim() &&
-                !selectedImage) ||
-              disabled
-            }
+            {/* THINK */}
+
+            <Tooltip
+              title={
+                thinkMode
+                  ? "Heavy reasoning enabled"
+                  : "Ask Ashani to think deeply"
+              }
+            >
+
+              <IconButton
+
+                type="button"
+
+                size="medium"
+
+                onClick={
+                  handleThinkToggle
+                }
+
+                disabled={disabled}
+
+                sx={{
+
+                  width: 40,
+
+                  height: 40,
+
+                  color:
+                    thinkMode
+                      ? "primary.main"
+                      : "text.secondary",
+
+                  backgroundColor:
+                    thinkMode
+                      ? "action.selected"
+                      : "transparent",
+
+                  "&:hover": {
+
+                    backgroundColor:
+                      "action.hover",
+
+                  },
+
+                }}
+              >
+
+                <PsychologyOutlinedIcon />
+
+              </IconButton>
+
+            </Tooltip>
+
+          </Box>
+
+
+          {/* RIGHT CONTROLS */}
+
+          <Box
             sx={{
-              gridColumn: {
-  xs: "6",
-  sm: "7",
-},
-              gridRow: {
-                xs: "2",
-                sm: "1",
-              },
+              display: "flex",
 
-              width: {
-                xs: 38,
-                sm: 42,
-              },
+              alignItems: "center",
 
-              height: {
-                xs: 38,
-                sm: 42,
-              },
-
-              flexShrink: 0,
-
-              borderRadius: "50%",
-
-              backgroundColor:
-                (message.trim() ||
-                  selectedImage) &&
-                !disabled
-                  ? "primary.main"
-                  : "action.disabledBackground",
-
-              color:
-                (message.trim() ||
-                  selectedImage) &&
-                !disabled
-                  ? "primary.contrastText"
-                  : "text.disabled",
-
-              transition:
-                "transform 0.15s ease, background-color 0.2s ease",
-
-              "&:hover": {
-                backgroundColor:
-                  "primary.dark",
-
-                transform:
-                  "scale(1.04)",
-              },
-
-              "&:active": {
-                transform:
-                  "scale(0.96)",
-              },
+              gap: 0.5,
             }}
           >
-            <ArrowUpwardIcon />
-          </IconButton>
-        </Tooltip>
+
+
+            {/* VOICE */}
+
+            <Tooltip
+              title={
+                listening
+                  ? "Stop listening"
+                  : "Voice input"
+              }
+            >
+
+              <IconButton
+
+                type="button"
+
+                size="medium"
+
+                onClick={handleVoice}
+
+                disabled={disabled}
+
+                sx={{
+
+                  width: 40,
+
+                  height: 40,
+
+                  color:
+                    listening
+                      ? "primary.main"
+                      : "text.secondary",
+
+                  backgroundColor:
+                    listening
+                      ? "action.hover"
+                      : "transparent",
+
+                  borderRadius:
+                    "50%",
+
+                  "&:hover": {
+
+                    backgroundColor:
+                      "action.hover",
+
+                  },
+
+                }}
+              >
+
+                {listening ? (
+
+                  <StopIcon />
+
+                ) : (
+
+                  <MicIcon />
+
+                )}
+
+              </IconButton>
+
+            </Tooltip>
+
+
+            {/* SEND */}
+
+            <Tooltip title="Send">
+
+              <IconButton
+
+                type="submit"
+
+                disabled={
+                  !hasContent ||
+                  disabled
+                }
+
+                sx={{
+
+                  width: 40,
+
+                  height: 40,
+
+                  borderRadius:
+                    "50%",
+
+                  backgroundColor:
+                    hasContent &&
+                    !disabled
+
+                      ? "primary.main"
+
+                      : "action.disabledBackground",
+
+                  color:
+                    hasContent &&
+                    !disabled
+
+                      ? "primary.contrastText"
+
+                      : "text.disabled",
+
+                  transition:
+                    "transform 0.15s ease, background-color 0.2s ease",
+
+                  "&:hover": {
+
+                    backgroundColor:
+                      "primary.dark",
+
+                    transform:
+                      "scale(1.04)",
+
+                  },
+
+                  "&:active": {
+
+                    transform:
+                      "scale(0.96)",
+
+                  },
+
+                }}
+              >
+
+                <ArrowUpwardIcon />
+
+              </IconButton>
+
+            </Tooltip>
+
+          </Box>
+
+        </Box>
+
       </Box>
+
     </Box>
+
   );
+
 }
+
 
 export default ChatInput;
